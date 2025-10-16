@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const http = require('http');
 require('dotenv').config();
 
@@ -31,6 +32,9 @@ seedAdmin();
 
 // Security middleware
 app.use(helmet());
+
+// Enable gzip compression
+app.use(compression());
 
 // Rate limiting
 const limiter = rateLimit({

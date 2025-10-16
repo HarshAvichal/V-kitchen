@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 
@@ -9,30 +10,31 @@ import Footer from './components/layout/Footer';
 import AdminLayout from './components/layout/AdminLayout';
 import ScrollToTop from './components/ScrollToTop';
 
-// Pages
-import Home from './pages/Home';
-import Menu from './pages/Menu';
-import MenuCard from './pages/MenuCard';
-import DishDetail from './pages/DishDetail';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import Profile from './pages/auth/Profile';
-import Orders from './pages/Orders';
-import OrderDetail from './pages/OrderDetail';
-import Notifications from './pages/Notifications';
+// Lazy load pages for better performance
+const Home = lazy(() => import('./pages/Home'));
+const Menu = lazy(() => import('./pages/Menu'));
+const MenuCard = lazy(() => import('./pages/MenuCard'));
+const DishDetail = lazy(() => import('./pages/DishDetail'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const Profile = lazy(() => import('./pages/auth/Profile'));
+const Orders = lazy(() => import('./pages/Orders'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail'));
+const Notifications = lazy(() => import('./pages/Notifications'));
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminMenu from './pages/admin/Menu';
-import AdminOrders from './pages/admin/Orders';
-import AdminUsers from './pages/admin/Users';
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminMenu = lazy(() => import('./pages/admin/Menu'));
+const AdminOrders = lazy(() => import('./pages/admin/Orders'));
+const AdminUsers = lazy(() => import('./pages/admin/Users'));
 import AdminAnalytics from './pages/admin/Analytics';
 
 // Protected Route Component
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
   return (
@@ -41,7 +43,8 @@ function App() {
         <Router>
           <ScrollToTop />
           <div className="min-h-screen bg-gray-50">
-            <Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
               {/* Admin Routes - No Navbar/Footer */}
               <Route path="/admin" element={
                 <AdminRoute>
@@ -156,7 +159,8 @@ function App() {
                   <Footer />
                 </>
               } />
-            </Routes>
+              </Routes>
+            </Suspense>
             <Toaster
               position="top-right"
               toastOptions={{

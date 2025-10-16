@@ -3,11 +3,16 @@ import axios from 'axios';
 // Create axios instance with base configuration
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
 
+// Simple cache implementation
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 const api = axios.create({
   baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
-  }
+  },
+  timeout: 10000, // 10 second timeout
 });
 
 // Request interceptor to add auth token
@@ -40,6 +45,31 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Cache helper functions
+const getCacheKey = (url, params = {}) => {
+  const sortedParams = Object.keys(params).sort().reduce((result, key) => {
+    result[key] = params[key];
+    return result;
+  }, {});
+  return `${url}?${JSON.stringify(sortedParams)}`;
+};
+
+const getCachedData = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+};
+
+const setCachedData = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
 
 // Auth API
 export const authAPI = {
@@ -82,16 +112,52 @@ export const authAPI = {
 // Dishes API
 export const dishesAPI = {
   // GET /api/v1/dishes
-  getDishes: (params = {}) => api.get('/dishes', { params }),
+  getDishes: async (params = {}) => {
+    const cacheKey = getCacheKey('/dishes', params);
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+      return Promise.resolve(cachedData);
+    }
+    const response = await api.get('/dishes', { params });
+    setCachedData(cacheKey, response);
+    return response;
+  },
   
   // GET /api/v1/dishes/:id
-  getDish: (id) => api.get(`/dishes/${id}`),
+  getDish: async (id) => {
+    const cacheKey = getCacheKey(`/dishes/${id}`);
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+      return Promise.resolve(cachedData);
+    }
+    const response = await api.get(`/dishes/${id}`);
+    setCachedData(cacheKey, response);
+    return response;
+  },
   
   // GET /api/v1/dishes/categories
-  getCategories: () => api.get('/dishes/categories'),
+  getCategories: async () => {
+    const cacheKey = getCacheKey('/dishes/categories');
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+      return Promise.resolve(cachedData);
+    }
+    const response = await api.get('/dishes/categories');
+    setCachedData(cacheKey, response);
+    return response;
+  },
   
   // GET /api/v1/dishes/tags
-  getTags: () => api.get('/dishes/tags'),
+  getTags: async () => {
+    const cacheKey = getCacheKey('/dishes/tags');
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+      return Promise.resolve(cachedData);
+    }
+    const response = await api.get('/dishes/tags');
+    setCachedData(cacheKey, response);
+    return response;
+  },
   
   // POST /api/v1/dishes (Admin only)
   createDish: (dishData) => api.post('/dishes', dishData),
