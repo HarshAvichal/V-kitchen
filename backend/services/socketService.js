@@ -9,9 +9,33 @@ class SocketService {
   }
 
   initialize(server) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'https://vkitchen.vercel.app',
+      process.env.FRONTEND_URL,
+      process.env.VITE_FRONTEND_URL
+    ].filter(Boolean);
+
     this.io = new Server(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:5173",
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, Postman, etc.)
+          if (!origin) return callback(null, true);
+
+          if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+
+          // In production, allow any Vercel domain
+          if (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')) {
+            return callback(null, true);
+          }
+
+          const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+          return callback(new Error(msg), false);
+        },
         methods: ["GET", "POST"],
         credentials: true
       },
