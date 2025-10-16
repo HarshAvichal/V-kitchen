@@ -48,10 +48,9 @@ const createOrder = async (req, res, next) => {
       });
     }
 
-    // Generate unique order number - OPTIMIZED: Use timestamp + random
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const orderNumber = `VK${timestamp}${random}`;
+    // Generate unique order number - Sequential format VK001, VK002, etc.
+    const orderCount = await Order.countDocuments();
+    const orderNumber = `VK${(orderCount + 1).toString().padStart(3, '0')}`;
 
     // Create order with pending status (will be updated to 'placed' after payment)
     const order = await Order.create({
