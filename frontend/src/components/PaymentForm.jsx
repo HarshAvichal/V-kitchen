@@ -21,44 +21,26 @@ const PaymentForm = ({ orderData, totalAmount, onPaymentSuccess, onPaymentError 
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('card');
 
-  // Create order before payment for faster processing
-  const createOrderBeforePayment = async () => {
-    try {
-      const response = await ordersAPI.createOrder(orderData);
-      return response.data.data;
-    } catch (error) {
-      console.error('❌ Error creating order:', error);
-      throw error;
-    }
-  };
-
-  // Handle payment success - order already created
+  // Create order after payment success (proper e-commerce flow)
   const handlePaymentSuccess = async (paymentIntent) => {
     try {
       setIsProcessing(false);
       
-      // Order was created before payment, just confirm it
-      if (paymentIntent.metadata && paymentIntent.metadata.orderId) {
-        const confirmResponse = await ordersAPI.confirmPayment(paymentIntent.metadata.orderId);
-        const confirmedOrder = confirmResponse.data.data;
-        
-        if (onPaymentSuccess) {
-          onPaymentSuccess({ ...paymentIntent, order: confirmedOrder });
-        }
-      } else {
-        // Fallback: create order after payment (slower but works)
-        const response = await ordersAPI.createOrder(orderData);
-        const createdOrder = response.data.data;
-        
-        const confirmResponse = await ordersAPI.confirmPayment(createdOrder._id);
-        const confirmedOrder = confirmResponse.data.data;
-        
-        if (onPaymentSuccess) {
-          onPaymentSuccess({ ...paymentIntent, order: confirmedOrder });
-        }
+      // Create order after successful payment
+      const response = await ordersAPI.createOrder(orderData);
+      const createdOrder = response.data.data;
+      
+      // Confirm payment to update order status to 'placed'
+      const confirmResponse = await ordersAPI.confirmPayment(createdOrder._id);
+      const confirmedOrder = confirmResponse.data.data;
+      
+      if (onPaymentSuccess) {
+        onPaymentSuccess({ ...paymentIntent, order: confirmedOrder });
       }
     } catch (error) {
-      console.error('❌ Error confirming payment:', error);
+      console.error('❌ Error creating order after payment:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
       if (onPaymentError) {
         onPaymentError(error);
       }
@@ -89,20 +71,6 @@ const PaymentForm = ({ orderData, totalAmount, onPaymentSuccess, onPaymentError 
     setIsProcessing(true);
 
     try {
-      // Create order BEFORE payment for faster processing
-      let order;
-      try {
-        order = await createOrderBeforePayment();
-        console.log('✅ Order created before payment:', order._id);
-      } catch (orderError) {
-        console.error('❌ Failed to create order before payment:', orderError);
-        setIsProcessing(false);
-        if (onPaymentError) {
-          onPaymentError(orderError);
-        }
-        return;
-      }
-
       let result;
 
       if (paymentMethod === 'card') {
@@ -133,8 +101,8 @@ const PaymentForm = ({ orderData, totalAmount, onPaymentSuccess, onPaymentError 
           onPaymentError(result.error);
         }
       } else {
-        // Payment successful - order already created
-        console.log('✅ Payment successful, confirming order...');
+        // Payment successful - create order now
+        console.log('✅ Payment successful, creating order...');
         toast.success('Payment successful! Processing your order...');
         await handlePaymentSuccess(result.paymentIntent);
       }

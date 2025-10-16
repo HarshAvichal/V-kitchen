@@ -10,12 +10,19 @@ const createOrder = async (req, res, next) => {
   try {
     const { items, deliveryType, deliveryAddress, contactPhone, specialInstructions } = req.body;
 
-    // Validate and calculate total amount
+    // Validate and calculate total amount - OPTIMIZED: Single query for all dishes
     let totalAmount = 0;
     const orderItems = [];
 
+    // Get all dish IDs
+    const dishIds = items.map(item => item.dish);
+    
+    // Single query to get all dishes at once
+    const dishes = await Dish.find({ _id: { $in: dishIds } });
+    const dishMap = new Map(dishes.map(dish => [dish._id.toString(), dish]));
+
     for (const item of items) {
-      const dish = await Dish.findById(item.dish);
+      const dish = dishMap.get(item.dish);
       
       if (!dish) {
         return res.status(400).json({
@@ -41,24 +48,10 @@ const createOrder = async (req, res, next) => {
       });
     }
 
-    // Generate unique order number
-    let orderNumber;
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    do {
-      const totalOrders = await Order.countDocuments();
-      orderNumber = `VK${(totalOrders + 1 + attempts).toString().padStart(3, '0')}`;
-      attempts++;
-      
-      // Check if this order number already exists
-      const existingOrder = await Order.findOne({ orderNumber });
-      if (!existingOrder) break;
-      
-      if (attempts >= maxAttempts) {
-        throw new Error('Unable to generate unique order number');
-      }
-    } while (true);
+    // Generate unique order number - OPTIMIZED: Use timestamp + random
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const orderNumber = `VK${timestamp}${random}`;
 
     // Create order with pending status (will be updated to 'placed' after payment)
     const order = await Order.create({
