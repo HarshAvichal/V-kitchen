@@ -18,14 +18,19 @@ export const useWebSocket = () => {
       return;
     }
 
-    // Initialize WebSocket connection
+    // Initialize WebSocket connection with optimized settings
     const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:5001', {
       auth: { token },
       transports: ['websocket', 'polling'],
-      timeout: 20000,
+      timeout: 10000, // Reduced timeout for faster connection
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10, // More attempts
+      reconnectionDelay: 500, // Faster reconnection
+      reconnectionDelayMax: 2000, // Max delay between attempts
+      maxReconnectionAttempts: 10,
+      forceNew: true, // Force new connection
+      upgrade: true, // Allow upgrade from polling to websocket
+      rememberUpgrade: true, // Remember upgrade preference
     });
 
     socketRef.current = socket;

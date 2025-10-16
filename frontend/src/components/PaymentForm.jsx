@@ -103,7 +103,17 @@ const PaymentForm = ({ orderData, totalAmount, onPaymentSuccess, onPaymentError 
       } else {
         // Payment successful - create order now
         console.log('✅ Payment successful, creating order...');
-        toast.success('Payment successful! Processing your order...');
+        toast.success('Payment successful! Processing your order...', {
+          duration: 3000,
+          position: 'top-right'
+        });
+        
+        // Show immediate success feedback
+        toast.success('Order placed successfully! You will receive a notification shortly.', {
+          duration: 4000,
+          position: 'top-right'
+        });
+        
         await handlePaymentSuccess(result.paymentIntent);
       }
     } catch (error) {

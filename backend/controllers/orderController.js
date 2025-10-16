@@ -114,41 +114,46 @@ const confirmPayment = async (req, res, next) => {
       
       await order.save();
       
-      // Send real-time WebSocket notifications AFTER status update
+      // Send notifications immediately and in parallel for faster delivery
       const socketService = require('../services/socketService');
+      
+      // Send WebSocket notification immediately (non-blocking)
       socketService.notifyOrderPlaced(order._id, order);
       
-      // Send email notification to admin
-      try {
-        // Ensure order is populated with dish details before sending email
-        const populatedOrder = await Order.findById(order._id).populate({
-          path: 'items.dish',
-          select: 'name description price imageUrl'
-        }).populate('user', 'name email phone');
+      // Create notifications in parallel (non-blocking)
+      Promise.all([
+        // Order placed notification
+        createOrderTimelineNotification(order._id, 'order-placed').catch(err => 
+          console.error('Error creating order placed notification:', err)
+        ),
         
-        const { sendOrderNotification } = require('./newsletterController');
-        await sendOrderNotification(populatedOrder);
-      } catch (emailError) {
-        console.error('Error sending order email notification:', emailError);
-        // Don't fail the order update if email fails
-      }
-      
-      // Create order placed notification (order is now visible to admin)
-      try {
-        await createOrderTimelineNotification(order._id, 'order-placed');
-      } catch (notificationError) {
-        console.error('Error creating order placed notification:', notificationError);
-        // Don't fail the order update if notification fails
-      }
-      
-      // Create payment success notification
-      try {
-        const { createPaymentNotification } = require('./notificationController');
-        await createPaymentNotification(order._id, 'payment-success');
-      } catch (notificationError) {
-        console.error('Error creating payment success notification:', notificationError);
-        // Don't fail the order update if notification fails
-      }
+        // Payment success notification
+        (async () => {
+          try {
+            const { createPaymentNotification } = require('./notificationController');
+            await createPaymentNotification(order._id, 'payment-success');
+          } catch (err) {
+            console.error('Error creating payment success notification:', err);
+          }
+        })(),
+        
+        // Email notification (async, non-blocking)
+        (async () => {
+          try {
+            const populatedOrder = await Order.findById(order._id).populate({
+              path: 'items.dish',
+              select: 'name description price imageUrl'
+            }).populate('user', 'name email phone');
+            
+            const { sendOrderNotification } = require('./newsletterController');
+            await sendOrderNotification(populatedOrder);
+          } catch (err) {
+            console.error('Error sending order email notification:', err);
+          }
+        })()
+      ]).catch(err => {
+        console.error('Error in parallel notification processing:', err);
+      });
       
     } catch (error) {
       console.error('❌ Error in confirmPayment:', error);
