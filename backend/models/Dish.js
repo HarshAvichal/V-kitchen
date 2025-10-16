@@ -24,7 +24,7 @@ const dishSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Please add a category'],
-    enum: ['breakfast', 'lunch', 'dinner', 'snacks', 'beverages'],
+    enum: ['breakfast', 'lunch', 'dinner', 'snacks', 'beverages', 'dessert'],
     lowercase: true
   },
   availability: {
@@ -33,7 +33,7 @@ const dishSchema = new mongoose.Schema({
   },
   tags: [{
     type: String,
-    enum: ['spicy', 'mild', 'vegan', 'vegetarian', 'non-vegetarian', 'gluten-free', 'dairy-free', 'nut-free', 'popular', 'new']
+    enum: ['spicy', 'mild', 'vegan', 'vegetarian', 'non-vegetarian', 'gluten-free', 'dairy-free', 'nut-free', 'popular', 'new', 'dessert']
   }],
   preparationTime: {
     type: Number,

@@ -228,11 +228,205 @@ const logout = async (req, res, next) => {
   }
 };
 
+// @desc    Get user's delivery addresses
+// @route   GET /api/v1/auth/addresses
+// @access  Private
+const getDeliveryAddresses = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        addresses: user.deliveryAddresses || []
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Add new delivery address
+// @route   POST /api/v1/auth/addresses
+// @access  Private
+const addDeliveryAddress = async (req, res, next) => {
+  try {
+    const { label, customLabel, street, city, state, zipCode, country, isDefault } = req.body;
+
+    // Validate required fields
+    if (!street || !city || !state || !zipCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Street, city, state, and ZIP code are required'
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    
+    // If this is set as default, remove default from other addresses
+    if (isDefault) {
+      user.deliveryAddresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
+    // Create new address
+    const newAddress = {
+      label: label || 'Home',
+      customLabel: customLabel || '',
+      street,
+      city,
+      state,
+      zipCode,
+      country: country || 'India',
+      isDefault: isDefault || false
+    };
+
+    user.deliveryAddresses.push(newAddress);
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Delivery address added successfully',
+      data: {
+        address: newAddress
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update delivery address
+// @route   PUT /api/v1/auth/addresses/:addressId
+// @access  Private
+const updateDeliveryAddress = async (req, res, next) => {
+  try {
+    const { addressId } = req.params;
+    const { label, customLabel, street, city, state, zipCode, country, isDefault } = req.body;
+
+    const user = await User.findById(req.user.id);
+    const address = user.deliveryAddresses.id(addressId);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    // If this is set as default, remove default from other addresses
+    if (isDefault) {
+      user.deliveryAddresses.forEach(addr => {
+        if (addr._id.toString() !== addressId) {
+          addr.isDefault = false;
+        }
+      });
+    }
+
+    // Update address fields
+    if (label) address.label = label;
+    if (customLabel !== undefined) address.customLabel = customLabel;
+    if (street) address.street = street;
+    if (city) address.city = city;
+    if (state) address.state = state;
+    if (zipCode) address.zipCode = zipCode;
+    if (country) address.country = country;
+    if (isDefault !== undefined) address.isDefault = isDefault;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery address updated successfully',
+      data: {
+        address: address
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete delivery address
+// @route   DELETE /api/v1/auth/addresses/:addressId
+// @access  Private
+const deleteDeliveryAddress = async (req, res, next) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    const address = user.deliveryAddresses.id(addressId);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    // Remove the address
+    user.deliveryAddresses.pull(addressId);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Delivery address deleted successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Set default delivery address
+// @route   PUT /api/v1/auth/addresses/:addressId/default
+// @access  Private
+const setDefaultAddress = async (req, res, next) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    const address = user.deliveryAddresses.id(addressId);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address not found'
+      });
+    }
+
+    // Remove default from all addresses
+    user.deliveryAddresses.forEach(addr => {
+      addr.isDefault = false;
+    });
+
+    // Set this address as default
+    address.isDefault = true;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Default address updated successfully',
+      data: {
+        address: address
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 module.exports = {
   register,
   login,
   getMe,
   updateProfile,
   changePassword,
-  logout
+  logout,
+  getDeliveryAddresses,
+  addDeliveryAddress,
+  updateDeliveryAddress,
+  deleteDeliveryAddress,
+  setDefaultAddress
 };

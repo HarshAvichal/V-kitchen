@@ -1,0 +1,23 @@
+{
+  "name": "V Kitchen - Fresh Food Delivery",
+  "short_name": "V Kitchen",
+  "description": "Delicious home-cooked meals delivered to your doorstep. Experience the taste of authentic flavors from our kitchen to yours.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/v-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "lifestyle", "shopping"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false
+}

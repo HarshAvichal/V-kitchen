@@ -57,8 +57,8 @@ const validateDish = [
     .isFloat({ min: 0 })
     .withMessage('Price must be a positive number'),
   body('category')
-    .isIn(['breakfast', 'lunch', 'dinner', 'snacks', 'beverages'])
-    .withMessage('Category must be one of: breakfast, lunch, dinner, snacks, beverages'),
+    .isIn(['breakfast', 'lunch', 'dinner', 'snacks', 'beverages', 'dessert'])
+    .withMessage('Category must be one of: breakfast, lunch, dinner, snacks, beverages, dessert'),
   body('tags')
     .optional()
     .isArray()

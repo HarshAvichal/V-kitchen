@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ordersAPI } from '../services/api';
+import { ordersAPI, paymentAPI } from '../services/api';
+import { useOrderUpdates } from '../hooks/useOrderUpdates';
+import { usePaymentUpdates } from '../hooks/usePaymentUpdates';
+import { formatPhoneNumber } from '../utils/phoneUtils';
 import { 
   ClockIcon,
   CheckCircleIcon,
@@ -8,8 +11,14 @@ import {
   MapPinIcon,
   PhoneIcon,
   TruckIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  ClipboardDocumentIcon,
+  UserIcon,
+  ShoppingBagIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
+import { MdEmail } from 'react-icons/md';
+import { FaUtensils } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 const OrderDetail = () => {
@@ -18,9 +27,14 @@ const OrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [requestingRefund, setRequestingRefund] = useState(false);
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
+    placed: 'bg-green-100 text-green-800',
     preparing: 'bg-blue-100 text-blue-800',
     ready: 'bg-purple-100 text-purple-800', // Purple for "Out for Delivery"
     completed: 'bg-green-100 text-green-800',
@@ -29,6 +43,7 @@ const OrderDetail = () => {
 
   const statusIcons = {
     pending: ClockIcon,
+    placed: CheckCircleIcon,
     preparing: ClockIcon,
     ready: TruckIcon, // Truck icon for "Out for Delivery"
     completed: CheckCircleIcon,
@@ -38,7 +53,8 @@ const OrderDetail = () => {
   // Map backend status to customer-friendly status
   const getCustomerStatus = (backendStatus) => {
     const statusMap = {
-      'pending': 'Order Placed',
+      'pending': 'Pending Payment',
+      'placed': 'Order Placed',
       'preparing': 'Preparing',
       'ready': 'Out for Delivery',
       'completed': 'Delivered',
@@ -49,8 +65,12 @@ const OrderDetail = () => {
 
   // Map payment method details to customer-friendly display
   const getPaymentMethodDisplay = (order) => {
-    if (order.paymentMethod === 'cash') {
-      return 'Cash on Delivery';
+    if (order.paymentMethod === 'card') {
+      return 'Credit/Debit Card';
+    }
+    
+    if (order.paymentMethod === 'upi') {
+      return 'UPI Payment';
     }
     
     if (order.paymentMethod === 'stripe') {
@@ -88,12 +108,46 @@ const OrderDetail = () => {
     return order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1);
   };
 
-  const statusSteps = [
-    { key: 'pending', label: 'Order Placed' },
-    { key: 'preparing', label: 'Preparing' },
-    { key: 'ready', label: 'Out for Delivery' },
-    { key: 'completed', label: 'Delivered' }
-  ];
+  // Dynamic status steps based on delivery type
+  const getStatusSteps = (deliveryType) => {
+    if (deliveryType === 'pickup') {
+      return [
+        { key: 'placed', label: 'Order Placed', icon: ClipboardDocumentIcon, description: 'Your order has been received' },
+        { key: 'preparing', label: 'Preparing', icon: UserIcon, description: 'Kitchen is cooking your food' },
+        { key: 'ready', label: 'Ready for Pickup', icon: ShoppingBagIcon, description: 'Your order is ready for pickup' },
+        { key: 'completed', label: 'Picked Up', icon: CheckCircleIcon, description: 'Order picked up successfully' }
+      ];
+    } else {
+      return [
+        { key: 'placed', label: 'Order Placed', icon: ClipboardDocumentIcon, description: 'Your order has been received' },
+        { key: 'preparing', label: 'Preparing', icon: UserIcon, description: 'Kitchen is cooking your food' },
+        { key: 'ready', label: 'Ready & Out for Delivery', icon: TruckIcon, description: 'Your order is ready and out for delivery' },
+        { key: 'completed', label: 'Delivered', icon: HomeIcon, description: 'Order delivered successfully' }
+      ];
+    }
+  };
+
+  const statusSteps = getStatusSteps(order?.deliveryType);
+
+  // 🚀 Real-time order updates via WebSocket
+  const handleOrderUpdate = (updatedOrder) => {
+    setOrder(prev => ({
+      ...prev,
+      status: updatedOrder.status,
+      paymentStatus: updatedOrder.paymentStatus,
+      statusTimestamps: updatedOrder.statusTimestamps || prev.statusTimestamps
+    }));
+  };
+
+  useOrderUpdates(id, handleOrderUpdate);
+  
+  // Also listen for payment success events (for simulated payments)
+  usePaymentUpdates(id, (data) => {
+    // Refresh the order data to get updated payment status
+    fetchOrder();
+  }, () => {
+    // Don't navigate since we're already on the order detail page
+  });
 
   useEffect(() => {
     fetchOrder();
@@ -113,16 +167,18 @@ const OrderDetail = () => {
     }
   };
 
-  const handleCancelOrder = async () => {
-    if (!window.confirm('Are you sure you want to cancel this order?')) {
-      return;
-    }
+  const handleCancelOrder = () => {
+    setShowCancelModal(true);
+  };
 
+  const confirmCancelOrder = async () => {
     try {
       setCancelling(true);
+      setShowCancelModal(false);
       await ordersAPI.cancelOrder(id);
-      toast.success('Order cancelled successfully');
-      fetchOrder(); // Refresh order data
+      // Redirect to orders page after successful cancellation
+      // Toast notification will be shown by the notification system
+      navigate('/orders');
     } catch (error) {
       console.error('Error cancelling order:', error);
       const message = error.response?.data?.message || 'Failed to cancel order';
@@ -130,6 +186,37 @@ const OrderDetail = () => {
     } finally {
       setCancelling(false);
     }
+  };
+
+  const cancelCancelOrder = () => {
+    setShowCancelModal(false);
+  };
+
+  const handleRequestRefund = () => {
+    setShowRefundModal(true);
+  };
+
+  const confirmRequestRefund = async () => {
+    try {
+      setRequestingRefund(true);
+      setShowRefundModal(false);
+      await paymentAPI.requestRefund(id, refundReason);
+      // Toast notification will be shown by the notification system
+      // Refresh order data
+      fetchOrder();
+    } catch (error) {
+      console.error('Error requesting refund:', error);
+      const message = error.response?.data?.message || 'Failed to request refund';
+      toast.error(message);
+    } finally {
+      setRequestingRefund(false);
+      setRefundReason('');
+    }
+  };
+
+  const cancelRequestRefund = () => {
+    setShowRefundModal(false);
+    setRefundReason('');
   };
 
   const formatDate = (dateString) => {
@@ -142,11 +229,62 @@ const OrderDetail = () => {
     });
   };
 
+  const formatTime = (dateString) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getStatusTimestamp = (status) => {
+    return order?.statusTimestamps?.[status];
+  };
+
   const getCurrentStepIndex = () => {
     return statusSteps.findIndex(step => step.key === order?.status);
   };
 
-  const canCancel = order?.status === 'pending' || order?.status === 'preparing';
+  // Check if order can be cancelled based on status and time
+  const canCancel = () => {
+    if (!order) return false;
+    
+    
+    // Can't cancel if already completed or cancelled
+    if (['completed', 'cancelled'].includes(order.status)) {
+      return false;
+    }
+    
+    // Can't cancel if order is out for delivery or ready
+    if (['ready'].includes(order.status)) {
+      return false;
+    }
+    
+    // For placed orders, allow cancellation (temporarily removing time restriction for testing)
+    if (order.status === 'placed') {
+      return true;
+    }
+    
+    // Allow cancellation for pending and preparing orders
+    const canCancelPending = ['pending', 'preparing'].includes(order.status);
+    return canCancelPending;
+  };
+
+  // Check if order can request refund - DISABLED
+  const canRequestRefund = () => {
+    return false; // Never show refund button
+  };
+
+  // Check if order is refunded
+  const isRefunded = () => {
+    return order?.paymentStatus === 'refunded';
+  };
+
+  // Check if refund is requested
+  const isRefundRequested = () => {
+    return order?.refundRequested;
+  };
 
   if (loading) {
     return (
@@ -216,36 +354,102 @@ const OrderDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Order Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Order Status Progress */}
+            {/* Enhanced Order Status Progress */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Order Status</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-8">Order Tracking</h2>
               
-              <div className="flex items-center justify-between">
-                {statusSteps.map((step, index) => {
-                  const isCompleted = index <= currentStepIndex;
-                  const isCurrent = index === currentStepIndex;
-                  
-                  return (
-                    <div key={step.key} className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        isCompleted 
-                          ? 'bg-orange-500 text-white' 
-                          : 'bg-gray-200 text-gray-400'
-                      }`}>
-                        {isCompleted ? (
-                          <CheckCircleIcon className="h-5 w-5" />
-                        ) : (
-                          <span className="text-sm font-semibold">{index + 1}</span>
-                        )}
+              {/* Interactive Timeline with Connected Circles */}
+              <div className="relative">
+                {/* Progress Line */}
+                <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-200">
+                  <div 
+                    className="h-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all duration-1000 ease-out"
+                    style={{ 
+                      width: `${(currentStepIndex / (statusSteps.length - 1)) * 100}%` 
+                    }}
+                  />
+                </div>
+                
+                {/* Timeline Steps */}
+                <div className="flex justify-between relative z-10">
+                  {statusSteps.map((step, index) => {
+                    const isCompleted = index <= currentStepIndex;
+                    const isCurrent = index === currentStepIndex;
+                    const isPast = index < currentStepIndex;
+                    const isOrderFullyCompleted = order?.status === 'completed';
+                    const isFinalStep = index === statusSteps.length - 1;
+                    const timestamp = getStatusTimestamp(step.key);
+                    
+                    return (
+                      <div key={step.key} className="flex flex-col items-center group">
+                        {/* Circle with Animation */}
+                        <div className="relative">
+                          {/* Pulse Animation for Current Step (but not if order is fully completed) */}
+                          {isCurrent && !isOrderFullyCompleted && (
+                            <div className="absolute inset-0 rounded-full bg-orange-400 animate-ping opacity-75" />
+                          )}
+                          
+                          {/* Main Circle */}
+                          <div className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 transform ${
+                            isOrderFullyCompleted && isFinalStep
+                              ? 'bg-green-500 text-white shadow-lg scale-110' 
+                              : isCompleted 
+                              ? 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-lg scale-110' 
+                              : isCurrent
+                              ? 'bg-gradient-to-br from-orange-300 to-orange-400 text-white shadow-md scale-105'
+                              : 'bg-gray-200 text-gray-400 hover:bg-gray-300 hover:scale-105'
+                          }`}>
+                            {isOrderFullyCompleted && isFinalStep ? (
+                              <CheckCircleIcon className="h-6 w-6" />
+                            ) : isCompleted || isCurrent ? (
+                              <step.icon className="h-6 w-6" />
+                            ) : (
+                              <span className="text-sm font-bold">{index + 1}</span>
+                            )}
+                          </div>
+                          
+                          {/* Checkmark for Completed Steps */}
+                          {isPast && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                              <CheckCircleIcon className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Step Label */}
+                        <div className="mt-3 text-center max-w-24">
+                          <span className={`text-xs font-medium transition-colors duration-300 ${
+                            isCurrent 
+                              ? 'text-orange-600 font-bold' 
+                              : isCompleted 
+                              ? 'text-gray-700 font-semibold'
+                              : 'text-gray-500'
+                          }`}>
+                            {step.label}
+                          </span>
+                          
+                          {/* Step Description */}
+                          <p className={`text-xs mt-1 transition-colors duration-300 ${
+                            isCurrent 
+                              ? 'text-orange-500' 
+                              : isCompleted 
+                              ? 'text-gray-600'
+                              : 'text-gray-400'
+                          }`}>
+                            {step.description}
+                          </p>
+                          
+                          {/* Timestamp Display */}
+                          {timestamp && (
+                            <p className="text-xs mt-1 text-green-600 font-medium">
+                              {formatTime(timestamp)}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <span className={`text-xs mt-2 text-center ${
-                        isCurrent ? 'text-orange-600 font-semibold' : 'text-gray-500'
-                      }`}>
-                        {step.label}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -254,31 +458,44 @@ const OrderDetail = () => {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
               
               <div className="space-y-4">
-                {order.items.map((item, index) => (
-                  <div key={index} className="flex items-center space-x-4 py-4 border-b border-gray-200 last:border-b-0">
-                    <img
-                      src={item.dish.imageUrl}
-                      alt={item.dish.name}
-                      className="h-16 w-16 object-cover rounded-lg"
-                    />
-                    
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{item.dish.name}</h3>
-                      <p className="text-sm text-gray-600">{item.dish.description}</p>
-                      <div className="flex items-center mt-1">
-                        <span className="text-sm text-gray-500">Quantity: {item.quantity}</span>
-                        <span className="mx-2 text-gray-300">•</span>
-                        <span className="text-sm text-gray-500">${item.price} each</span>
+                {order.items.map((item, index) => {
+                  const dishName = item.dish?.name || 'Item No Longer Available';
+                  const dishDescription = item.dish?.description || 'This item is no longer available in our menu';
+                  const dishImage = item.dish?.imageUrl || '/placeholder-dish.jpg';
+                  const itemPrice = item.price || 0;
+                  const itemTotal = itemPrice * item.quantity;
+                  
+                  return (
+                    <div key={index} className="flex items-center space-x-4 py-4 border-b border-gray-200 last:border-b-0">
+                      <img
+                        src={dishImage}
+                        alt={dishName}
+                        className="h-16 w-16 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = '/placeholder-dish.jpg';
+                        }}
+                      />
+                      
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">{dishName}</h3>
+                        <p className="text-sm text-gray-600">{dishDescription}</p>
+                        <div className="flex items-center mt-1">
+                          <span className="text-sm text-gray-500">Quantity: {item.quantity}</span>
+                          <span className="mx-2 text-gray-300">•</span>
+                          <span className="text-sm text-gray-500">
+                            {itemPrice > 0 ? `$${itemPrice} each` : 'Price not available'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <span className="font-semibold text-gray-900">
+                          ${itemTotal.toFixed(2)}
+                        </span>
                       </div>
                     </div>
-                    
-                    <div className="text-right">
-                      <span className="font-semibold text-gray-900">
-                        ${(item.price * item.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -290,17 +507,137 @@ const OrderDetail = () => {
               </div>
             )}
 
-            {/* Cancel Order Button */}
-            {canCancel && (
+            {/* Order Actions */}
+            {(canCancel() || canRequestRefund() || isRefunded() || isRefundRequested()) && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Actions</h2>
-                <button
-                  onClick={handleCancelOrder}
-                  disabled={cancelling}
-                  className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {cancelling ? 'Cancelling...' : 'Cancel Order'}
-                </button>
+                
+                {/* Refund Status Messages */}
+                {isRefunded() && (
+                  <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center">
+                      <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+                      <div>
+                        <h3 className="text-sm font-medium text-green-800">Refund Processed</h3>
+                        <p className="text-sm text-green-700">
+                          Your refund has been processed successfully. The amount will be credited to your original payment method within 5-10 business days.
+                        </p>
+                        {order.refundId && (
+                          <p className="text-xs text-green-600 mt-1">
+                            Refund ID: {order.refundId}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isRefundRequested() && !isRefunded() && (
+                  <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <ClockIcon className="h-5 w-5 text-yellow-500 mr-2" />
+                      <div>
+                        <h3 className="text-sm font-medium text-yellow-800">Refund Requested</h3>
+                        <p className="text-sm text-yellow-700">
+                          Your refund request has been submitted and is under review. We'll process it within 1-2 business days.
+                        </p>
+                        {order.refundReason && (
+                          <p className="text-xs text-yellow-600 mt-1">
+                            Reason: {order.refundReason}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {canCancel() && (
+                    <div>
+                      <button
+                        onClick={handleCancelOrder}
+                        disabled={cancelling}
+                        className="w-full bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Cancelling will automatically process your refund
+                      </p>
+                    </div>
+                  )}
+
+                  {canRequestRefund() && (
+                    <div>
+                      <button
+                        onClick={handleRequestRefund}
+                        disabled={requestingRefund}
+                        className="w-full bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {requestingRefund ? 'Requesting...' : 'Request Refund'}
+                      </button>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        For completed orders only (before delivery)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Order Status Messages for Non-Cancellable Orders */}
+            {order?.status === 'ready' && !canCancel() && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-yellow-800 mb-2">Order Status</h2>
+                <p className="text-yellow-700">
+                  This order is ready for pickup/delivery and cannot be cancelled. If you need assistance, please contact our support team.
+                </p>
+              </div>
+            )}
+
+            {/* Delivered Order Message */}
+            {order?.status === 'completed' && !canRequestRefund() && !isRefunded() && (
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-8 text-center shadow-sm">
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircleIcon className="w-8 h-8 text-green-600" />
+                  </div>
+                </div>
+                
+                <h2 className="text-2xl font-bold text-green-800 mb-3">Order Delivered Successfully!</h2>
+            <p className="text-green-700 text-lg mb-6 max-w-md mx-auto">
+              Your delicious meal has been delivered. We hope you enjoyed every bite! <FaUtensils className="inline-block ml-1 text-gray-600" />
+            </p>
+                
+                <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border border-green-100">
+                  <p className="text-sm text-gray-600 mb-2">Facing any issues with your order?</p>
+                  <button
+                    onClick={() => window.open(`mailto:support@vkitchen.com?subject=Order Issue - ${order.orderNumber}&body=Hi V Kitchen Team,%0D%0A%0D%0AI need assistance with my order #${order.orderNumber}.%0D%0A%0D%0AIssue description:%0D%0A%0D%0AThank you!`, '_blank')}
+                    className="inline-flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                  >
+                    <MdEmail className="w-5 h-5 mr-2" />
+                    Contact Support
+                  </button>
+                </div>
+                
+                <div className="text-center">
+                  <p className="text-sm text-gray-500">
+                    Reference: <span className="font-mono font-semibold text-gray-700">#{order.orderNumber}</span>
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Delivered on {order?.statusTimestamps?.completed ? 
+                      new Date(order.statusTimestamps.completed).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : 
+                      'Recently'
+                    }
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -351,7 +688,7 @@ const OrderDetail = () => {
                 
                 <div>
                   <p className="text-sm text-gray-500">Contact Phone</p>
-                  <p className="font-semibold text-gray-900">{order.contactPhone}</p>
+                  <p className="font-semibold text-gray-900">{formatPhoneNumber(order.contactPhone)}</p>
                 </div>
                 
                 {order.deliveryType === 'delivery' && order.deliveryAddress && (
@@ -393,6 +730,115 @@ const OrderDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Cancel Order Confirmation Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                {/* Modal Header */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <XCircleIcon className="w-6 h-6 text-red-600" />
+                  </div>
+                </div>
+                
+                {/* Modal Title */}
+                <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                  Cancel Order
+                </h3>
+                
+                {/* Modal Message */}
+                <p className="text-gray-600 text-center mb-6">
+                  Are you sure you want to cancel order <span className="font-semibold text-gray-900">#{order?.orderNumber}</span>? 
+                  <br /><br />
+                  <span className="text-green-600 font-medium">Your refund will be processed automatically</span> and credited to your original payment method within 5-10 business days.
+                </p>
+                
+                {/* Modal Buttons */}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={cancelCancelOrder}
+                    disabled={cancelling}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmCancelOrder}
+                    disabled={cancelling}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Refund Request Modal */}
+        {showRefundModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                {/* Modal Header */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <ClockIcon className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+                
+                {/* Modal Title */}
+                <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                  Request Refund
+                </h3>
+                
+                {/* Modal Message */}
+                <p className="text-gray-600 text-center mb-4">
+                  Please provide a reason for your refund request. Our team will review it within 1-2 business days.
+                </p>
+                
+                {/* Refund Reason Input */}
+                <div className="mb-6">
+                  <label htmlFor="refundReason" className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for refund
+                  </label>
+                  <textarea
+                    id="refundReason"
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    placeholder="Please explain why you need a refund..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    rows={3}
+                    maxLength={500}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {refundReason.length}/500 characters
+                  </p>
+                </div>
+                
+                {/* Modal Actions */}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={cancelRequestRefund}
+                    disabled={requestingRefund}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmRequestRefund}
+                    disabled={requestingRefund || !refundReason.trim()}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {requestingRefund ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

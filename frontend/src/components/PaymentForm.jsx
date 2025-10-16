@@ -10,20 +10,62 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { ordersAPI, paymentAPI } from '../services/api';
+import { usePaymentUpdates } from '../hooks/usePaymentUpdates';
 import toast from 'react-hot-toast';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
-const PaymentForm = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError }) => {
+const PaymentForm = ({ orderData, totalAmount, onPaymentSuccess, onPaymentError }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('card');
 
+  // Create order after payment success
+  const handlePaymentSuccess = async (paymentIntent) => {
+    try {
+      setIsProcessing(false);
+      
+      // Create order after successful payment
+      
+      const response = await ordersAPI.createOrder(orderData);
+      const createdOrder = response.data.data;
+      
+      // Confirm payment to update order status to 'placed'
+      const confirmResponse = await ordersAPI.confirmPayment(createdOrder._id);
+      const confirmedOrder = confirmResponse.data.data;
+      
+      if (onPaymentSuccess) {
+        onPaymentSuccess({ ...paymentIntent, order: confirmedOrder });
+      }
+    } catch (error) {
+      console.error('❌ Error creating order after payment:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+      if (onPaymentError) {
+        onPaymentError(error);
+      }
+    }
+  };
+
+  const handleWebSocketPaymentError = (data) => {
+    setIsProcessing(false);
+    if (onPaymentError) {
+      onPaymentError(data);
+    }
+  };
+
+  // No WebSocket needed - order will be created after payment success
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!stripe || !elements) {
+      return;
+    }
+
+    // Prevent multiple submissions
+    if (isProcessing) {
       return;
     }
 
@@ -37,7 +79,7 @@ const PaymentForm = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError })
         result = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            return_url: `${window.location.origin}/order/${orderId}`,
+            return_url: `${window.location.origin}/checkout`,
           },
           redirect: 'if_required',
         });
@@ -46,7 +88,7 @@ const PaymentForm = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError })
         result = await stripe.confirmPayment({
           elements,
           confirmParams: {
-            return_url: `${window.location.origin}/order/${orderId}`,
+            return_url: `${window.location.origin}/checkout`,
           },
           redirect: 'if_required',
         });
@@ -54,33 +96,20 @@ const PaymentForm = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError })
 
       if (result.error) {
         console.error('Payment failed:', result.error);
-        toast.error(result.error.message || 'Payment failed');
-        onPaymentError(result.error);
-      } else {
-        console.log('Payment succeeded:', result.paymentIntent);
-        
-        // Update payment status in the database
-        try {
-          await paymentAPI.updatePaymentStatus(
-            orderId, 
-            result.paymentIntent.id, 
-            result.paymentIntent.status
-          );
-          console.log('Payment status updated successfully');
-        } catch (updateError) {
-          console.error('Error updating payment status:', updateError);
-          // Don't fail the payment if status update fails
+        setIsProcessing(false);
+        if (onPaymentError) {
+          onPaymentError(result.error);
         }
-        
-        toast.success('Payment successful!');
-        onPaymentSuccess(result.paymentIntent);
+      } else {
+        // Payment successful - create order
+        await handlePaymentSuccess(result.paymentIntent);
       }
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error(error.message || 'Payment failed');
-      onPaymentError(error);
-    } finally {
       setIsProcessing(false);
+      if (onPaymentError) {
+        onPaymentError(error);
+      }
     }
   };
 
@@ -167,7 +196,7 @@ const PaymentForm = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError })
         {isProcessing ? (
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-            Processing Payment...
+            Processing Payment... Please wait
           </div>
         ) : (
           `Pay $${totalAmount.toFixed(2)}`
@@ -183,58 +212,47 @@ const PaymentForm = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError })
           Your payment information is secure and encrypted
         </div>
       </div>
+
     </form>
   );
 };
 
-const PaymentFormWrapper = ({ orderId, totalAmount, onPaymentSuccess, onPaymentError }) => {
+const PaymentFormWrapper = ({ orderData, totalAmount, onPaymentSuccess, onPaymentError }) => {
   const [clientSecret, setClientSecret] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (orderId) {
+    if (orderData && !clientSecret) {
       createPaymentIntent();
     }
-  }, [orderId]);
+  }, [orderData, clientSecret]);
 
   const createPaymentIntent = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Creating payment intent for order:', orderId);
-      const response = await paymentAPI.createPaymentIntent(orderId);
-      console.log('Payment intent response:', response);
-      console.log('Response data:', response.data);
-      console.log('Client secret:', response.data.data?.clientSecret);
+      const response = await paymentAPI.createPaymentIntentForOrder(orderData);
       
       if (response.data && response.data.data && response.data.data.clientSecret) {
         setClientSecret(response.data.data.clientSecret);
       } else {
+        console.error('No client secret in response:', response.data);
         throw new Error('No client secret received from server');
       }
     } catch (error) {
       console.error('Error creating payment intent:', error);
       console.error('Error response:', error.response);
-      setError('Failed to initialize payment');
-      toast.error('Failed to initialize payment');
-      onPaymentError(error);
+      console.error('Error message:', error.message);
+      setError(`Failed to initialize payment: ${error.message}`);
+      if (onPaymentError) {
+        onPaymentError(error);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const options = {
-    clientSecret,
-    appearance: {
-      theme: 'stripe',
-      variables: {
-        colorPrimary: '#f97316', // Orange color to match the theme
-      },
-    },
-  };
-
-  // Show loading state while creating payment intent
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -244,7 +262,6 @@ const PaymentFormWrapper = ({ orderId, totalAmount, onPaymentSuccess, onPaymentE
     );
   }
 
-  // Show error state if payment intent creation failed
   if (error || !clientSecret) {
     return (
       <div className="text-center p-8">
@@ -259,16 +276,32 @@ const PaymentFormWrapper = ({ orderId, totalAmount, onPaymentSuccess, onPaymentE
           onClick={createPaymentIntent}
           className="mt-4 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
         >
-          Try Again
+          Retry Payment
         </button>
       </div>
     );
   }
 
+  const options = {
+    clientSecret,
+    appearance: {
+      theme: 'stripe',
+      variables: {
+        colorPrimary: '#f97316',
+        colorBackground: '#ffffff',
+        colorText: '#1f2937',
+        colorDanger: '#ef4444',
+        fontFamily: 'system-ui, sans-serif',
+        spacingUnit: '4px',
+        borderRadius: '8px',
+      },
+    },
+  };
+
   return (
     <Elements stripe={stripePromise} options={options}>
       <PaymentForm
-        orderId={orderId}
+        orderData={orderData}
         totalAmount={totalAmount}
         onPaymentSuccess={onPaymentSuccess}
         onPaymentError={onPaymentError}

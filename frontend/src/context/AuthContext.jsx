@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
 
+
     if (token && user) {
       try {
         dispatch({
@@ -181,6 +182,67 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Address management functions
+  const getDeliveryAddresses = async () => {
+    try {
+      const response = await authAPI.getDeliveryAddresses();
+      return { success: true, data: response.data.data.addresses };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to fetch addresses';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const addDeliveryAddress = async (addressData) => {
+    try {
+      const response = await authAPI.addDeliveryAddress(addressData);
+      toast.success('Address added successfully!');
+      return { success: true, data: response.data.data.address };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to add address';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const updateDeliveryAddress = async (addressId, addressData) => {
+    try {
+      const response = await authAPI.updateDeliveryAddress(addressId, addressData);
+      toast.success('Address updated successfully!');
+      return { success: true, data: response.data.data.address };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to update address';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const deleteDeliveryAddress = async (addressId) => {
+    try {
+      await authAPI.deleteDeliveryAddress(addressId);
+      toast.success('Address deleted successfully!');
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to delete address';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  const setDefaultAddress = async (addressId) => {
+    try {
+      const response = await authAPI.setDefaultAddress(addressId);
+      toast.success('Default address updated successfully!');
+      return { success: true, data: response.data.data.address };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to set default address';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+
   const clearError = () => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
@@ -193,6 +255,11 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     changePassword,
     clearError,
+    getDeliveryAddresses,
+    addDeliveryAddress,
+    updateDeliveryAddress,
+    deleteDeliveryAddress,
+    setDefaultAddress,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

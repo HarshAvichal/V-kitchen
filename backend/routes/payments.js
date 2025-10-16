@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { 
   createPaymentIntent, 
+  createPaymentIntentForOrder,
   handleWebhook, 
+  requestRefund,
   processRefund, 
   getPaymentDetails,
-  updatePaymentStatus
+  verifyPaymentStatus
 } = require('../controllers/paymentController');
 const { protect } = require('../middleware/auth');
 
@@ -17,6 +19,12 @@ router.use(protect);
 
 // Create payment intent
 router.post('/create-payment-intent', createPaymentIntent);
+
+// Create payment intent for order data (before order creation)
+router.post('/create-payment-intent-for-order', createPaymentIntentForOrder);
+
+// Request refund (customer)
+router.post('/request-refund', requestRefund);
 
 // Process refund (admin only)
 router.post('/refund', (req, res, next) => {
@@ -32,7 +40,7 @@ router.post('/refund', (req, res, next) => {
 // Get payment details
 router.get('/details/:orderId', getPaymentDetails);
 
-// Update payment status
-router.put('/status/:orderId', updatePaymentStatus);
+// Verify payment status (secure server-side verification)
+router.get('/verify/:orderId', verifyPaymentStatus);
 
 module.exports = router;

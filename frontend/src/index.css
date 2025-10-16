@@ -10,6 +10,60 @@
   overflow: hidden;
 }
 
+/* Slideshow animations - Group of 4 dishes as single unit */
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutToLeft {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.slide-in-from-right {
+  animation: slideInFromRight 1s ease-in-out forwards;
+}
+
+.slide-out-to-left {
+  animation: slideOutToLeft 1s ease-in-out forwards;
+}
+
+/* Ensure cards have solid, complete bottoms */
+.dish-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.dish-card .card-content {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dish-card .card-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

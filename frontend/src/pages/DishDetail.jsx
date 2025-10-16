@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { dishesAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { 
-  StarIcon,
   ClockIcon,
   PlusIcon,
   MinusIcon,
@@ -140,10 +139,6 @@ const DishDetail = () => {
                 )}
               </div>
               
-              <div className="flex items-center">
-                <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                <span className="ml-1 text-sm text-gray-600">4.5</span>
-              </div>
             </div>
           </div>
 

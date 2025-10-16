@@ -96,6 +96,54 @@ const sampleDishes = [
       carbs: 35,
       fat: 2
     }
+  },
+  {
+    name: 'Gulab Jamun',
+    description: 'Soft, spongy milk dumplings soaked in rose-flavored sugar syrup',
+    price: 5.99,
+    imageUrl: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=300&fit=crop&t=' + Date.now(),
+    category: 'dessert',
+    tags: ['vegetarian', 'dessert', 'popular'],
+    preparationTime: 30,
+    ingredients: ['Milk Powder', 'Flour', 'Ghee', 'Sugar', 'Rose Water', 'Cardamom'],
+    nutritionalInfo: {
+      calories: 320,
+      protein: 8,
+      carbs: 45,
+      fat: 12
+    }
+  },
+  {
+    name: 'Kheer (Rice Pudding)',
+    description: 'Creamy rice pudding with nuts and aromatic spices',
+    price: 4.49,
+    imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop&t=' + Date.now(),
+    category: 'dessert',
+    tags: ['vegetarian', 'dessert', 'mild'],
+    preparationTime: 25,
+    ingredients: ['Basmati Rice', 'Milk', 'Sugar', 'Almonds', 'Raisins', 'Cardamom', 'Saffron'],
+    nutritionalInfo: {
+      calories: 280,
+      protein: 10,
+      carbs: 40,
+      fat: 8
+    }
+  },
+  {
+    name: 'Ras Malai',
+    description: 'Soft cottage cheese dumplings in sweetened milk with pistachios',
+    price: 6.99,
+    imageUrl: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop&t=' + Date.now(),
+    category: 'dessert',
+    tags: ['vegetarian', 'dessert', 'popular'],
+    preparationTime: 35,
+    ingredients: ['Paneer', 'Milk', 'Sugar', 'Pistachios', 'Cardamom', 'Saffron'],
+    nutritionalInfo: {
+      calories: 350,
+      protein: 15,
+      carbs: 35,
+      fat: 15
+    }
   }
 ];
 

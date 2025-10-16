@@ -1,4 +1,5 @@
 const Dish = require('../models/Dish');
+const socketService = require('../services/socketService');
 
 // @desc    Get all dishes
 // @route   GET /api/v1/dishes
@@ -17,10 +18,10 @@ const getDishes = async (req, res, next) => {
       query.availability = req.query.availability === 'true';
     }
 
-    // Filter by tags - require ALL selected tags to match
+    // Filter by tags - show dishes that contain ANY of the selected tags
     if (req.query.tags) {
       const tags = req.query.tags.split(',');
-      query.tags = { $all: tags };
+      query.tags = { $in: tags };
     }
 
     // Search by name or description
@@ -131,6 +132,10 @@ const createDish = async (req, res, next) => {
 
     const dish = await Dish.create(req.body);
 
+    // Emit WebSocket event for real-time updates
+    socketService.notifyDishUpdate(dish, 'created');
+    socketService.notifyMenuUpdate('dish-added', dish);
+
     res.status(201).json({
       success: true,
       message: 'Dish created successfully',
@@ -160,6 +165,10 @@ const updateDish = async (req, res, next) => {
       runValidators: true
     });
 
+    // Emit WebSocket event for real-time updates
+    socketService.notifyDishUpdate(dish, 'updated');
+    socketService.notifyMenuUpdate('dish-updated', dish);
+
     res.status(200).json({
       success: true,
       message: 'Dish updated successfully',
@@ -187,6 +196,10 @@ const deleteDish = async (req, res, next) => {
     // Soft delete - set isActive to false
     dish.isActive = false;
     await dish.save();
+
+    // Emit WebSocket event for real-time updates
+    socketService.notifyDishUpdate(dish, 'deleted');
+    socketService.notifyMenuUpdate('dish-deleted', { id: dish._id, name: dish.name });
 
     res.status(200).json({
       success: true,

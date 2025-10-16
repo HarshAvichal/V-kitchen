@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import NotificationCenter from '../NotificationCenter';
 import { 
   Bars3Icon, 
   XMarkIcon, 
@@ -24,7 +25,7 @@ const Navbar = () => {
 
   const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
-    { name: 'Menu', href: '/menu', icon: ClipboardDocumentListIcon },
+    { name: 'Menu Card', href: '/menu-card', icon: ClipboardDocumentListIcon },
   ];
 
   const adminNavigation = [
@@ -77,6 +78,9 @@ const Navbar = () => {
                 </div>
               </div>
             )}
+
+            {/* Notifications */}
+            {isAuthenticated && <NotificationCenter />}
 
             <Link
               to="/cart"

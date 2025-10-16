@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAdminUpdates } from '../../hooks/useAdminUpdates';
+import notificationService from '../../services/notificationService';
 import { 
   HomeIcon,
   ChartBarIcon,
@@ -8,17 +10,48 @@ import {
   Bars3Icon,
   XMarkIcon,
   UserGroupIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ArrowRightOnRectangleIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 const AdminLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Handle admin updates and notifications
+  const handleNewOrder = (newOrder) => {
+    
+    // Show desktop notification
+    if (notificationService.isSupported()) {
+      notificationService.showNewOrderNotification(newOrder);
+    }
+  };
+
+  const handleOrderUpdate = (updatedOrder) => {
+    
+    // Show desktop notification for status changes
+    if (notificationService.isSupported() && updatedOrder.status) {
+      notificationService.showOrderUpdateNotification(updatedOrder, updatedOrder.status);
+    }
+  };
+
+  // Initialize admin updates
+  useAdminUpdates(handleNewOrder, handleOrderUpdate);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (notificationService.getPermissionStatus() === 'default') {
+      notificationService.initialize();
+    }
+  }, []);
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
     { name: 'Orders', href: '/admin/orders', icon: ClipboardDocumentListIcon },
-    { name: 'Menu', href: '/admin/menu', icon: ShoppingBagIcon },
+    { name: 'Manage Menu', href: '/admin/menu', icon: ShoppingBagIcon },
+    { name: 'Menu Card', href: '/admin/menu-card', icon: DocumentTextIcon },
     { name: 'Users', href: '/admin/users', icon: UserGroupIcon },
     { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
   ];
@@ -27,7 +60,23 @@ const AdminLayout = ({ children }) => {
     if (path === '/admin') {
       return location.pathname === '/admin';
     }
+    // Use exact match for menu paths to avoid conflicts
+    if (path === '/admin/menu') {
+      return location.pathname === '/admin/menu';
+    }
+    if (path === '/admin/menu-card') {
+      return location.pathname === '/admin/menu-card';
+    }
     return location.pathname.startsWith(path);
+  };
+
+  const handleLogout = () => {
+    // Clear local storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // Navigate to login page
+    navigate('/login');
   };
 
   return (
@@ -70,6 +119,17 @@ const AdminLayout = ({ children }) => {
                 {item.name}
               </Link>
             ))}
+            
+            {/* Logout button */}
+            <div className="pt-4 border-t border-gray-200">
+              <button
+                onClick={handleLogout}
+                className="group flex items-center w-full px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
+              >
+                <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500" />
+                Logout
+              </button>
+            </div>
           </nav>
         </div>
       </div>
@@ -104,6 +164,17 @@ const AdminLayout = ({ children }) => {
                 {item.name}
               </Link>
             ))}
+            
+            {/* Logout button */}
+            <div className="pt-4 border-t border-gray-200">
+              <button
+                onClick={handleLogout}
+                className="group flex items-center w-full px-2 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
+              >
+                <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500" />
+                Logout
+              </button>
+            </div>
           </nav>
         </div>
       </div>
@@ -122,12 +193,9 @@ const AdminLayout = ({ children }) => {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <Link
-                to="/"
-                className="text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
-              >
-                View Site
-              </Link>
+              <span className="text-sm text-gray-500">
+                Admin Dashboard
+              </span>
             </div>
           </div>
         </div>

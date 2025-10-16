@@ -5,7 +5,8 @@ const {
   getDashboardStats,
   getAllUsers,
   toggleUserStatus,
-  deleteOrder
+  deleteOrder,
+  getUserStats
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -23,6 +24,7 @@ router.delete('/orders/:id', deleteOrder);
 
 // User management
 router.get('/users', getAllUsers);
+router.get('/users/:userId/stats', getUserStats);
 router.put('/users/:id/toggle-status', toggleUserStatus);
 
 module.exports = router;

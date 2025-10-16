@@ -78,9 +78,17 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'preparing', 'ready', 'completed', 'cancelled'],
+    enum: ['pending', 'placed', 'preparing', 'ready', 'completed', 'cancelled'],
     default: 'pending',
     lowercase: true
+  },
+  // Status change timestamps for tracking
+  statusTimestamps: {
+    placed: { type: Date },
+    preparing: { type: Date },
+    ready: { type: Date },
+    completed: { type: Date },
+    cancelled: { type: Date }
   },
   paymentStatus: {
     type: String,
@@ -90,8 +98,8 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'card', 'upi', 'wallet', 'stripe'],
-    default: 'cash',
+    enum: ['card', 'upi', 'wallet', 'stripe'],
+    default: 'card',
     lowercase: true
   },
   // Specific payment method details for better customer display
@@ -115,6 +123,17 @@ const orderSchema = new mongoose.Schema({
     type: String,
     sparse: true
   },
+  refundRequested: {
+    type: Boolean,
+    default: false
+  },
+  refundReason: {
+    type: String,
+    maxlength: [500, 'Refund reason cannot be more than 500 characters']
+  },
+  refundRequestedAt: {
+    type: Date
+  },
   specialInstructions: {
     type: String,
     maxlength: [500, 'Special instructions cannot be more than 500 characters']
@@ -128,6 +147,24 @@ const orderSchema = new mongoose.Schema({
   notes: {
     type: String,
     maxlength: [500, 'Notes cannot be more than 500 characters']
+  },
+  // Soft delete fields for customer deletion
+  isDeletedByCustomer: {
+    type: Boolean,
+    default: false
+  },
+  deletedByCustomerAt: {
+    type: Date,
+    default: null
+  },
+  // Soft delete fields for admin deletion (preserves data for statistics)
+  isDeletedByAdmin: {
+    type: Boolean,
+    default: false
+  },
+  deletedByAdminAt: {
+    type: Date,
+    default: null
   },
   createdAt: {
     type: Date,

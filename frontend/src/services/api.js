@@ -2,13 +2,12 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
-console.log('API Base URL:', baseURL);
 
 const api = axios.create({
   baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
-  },
+  }
 });
 
 // Request interceptor to add auth token
@@ -18,6 +17,8 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    
     return config;
   },
   (error) => {
@@ -28,11 +29,9 @@ api.interceptors.request.use(
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => {
-    console.log('API Response:', response.config.url, response.status);
     return response;
   },
   (error) => {
-    console.error('API Error:', error.config?.url, error.response?.status, error.message);
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -61,6 +60,23 @@ export const authAPI = {
   
   // POST /api/v1/auth/logout
   logout: () => api.post('/auth/logout'),
+  
+  // Address management
+  // GET /api/v1/auth/addresses
+  getDeliveryAddresses: () => api.get('/auth/addresses'),
+  
+  // POST /api/v1/auth/addresses
+  addDeliveryAddress: (addressData) => api.post('/auth/addresses', addressData),
+  
+  // PUT /api/v1/auth/addresses/:addressId
+  updateDeliveryAddress: (addressId, addressData) => api.put(`/auth/addresses/${addressId}`, addressData),
+  
+  // DELETE /api/v1/auth/addresses/:addressId
+  deleteDeliveryAddress: (addressId) => api.delete(`/auth/addresses/${addressId}`),
+  
+  // PUT /api/v1/auth/addresses/:addressId/default
+  setDefaultAddress: (addressId) => api.put(`/auth/addresses/${addressId}/default`),
+  
 };
 
 // Dishes API
@@ -92,6 +108,9 @@ export const ordersAPI = {
   // POST /api/v1/orders
   createOrder: (orderData) => api.post('/orders', orderData),
   
+  // PUT /api/v1/orders/:id/confirm-payment
+  confirmPayment: (id) => api.put(`/orders/${id}/confirm-payment`),
+  
   // GET /api/v1/orders/my-orders
   getMyOrders: (params = {}) => api.get('/orders/my-orders', { params }),
   
@@ -114,10 +133,23 @@ export const adminAPI = {
   getDashboardStats: () => api.get('/admin/stats'),
   
   // GET /api/v1/admin/orders
-  getAllOrders: (params = {}) => api.get('/admin/orders', { params }),
+  getAllOrders: (params = {}) => {
+    // Manually construct URL with query parameters
+    const queryString = new URLSearchParams();
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        queryString.append(key, params[key]);
+      }
+    });
+    const url = queryString.toString() ? `/admin/orders?${queryString.toString()}` : '/admin/orders';
+    return api.get(url);
+  },
   
   // GET /api/v1/admin/users
   getAllUsers: (params = {}) => api.get('/admin/users', { params }),
+  
+  // GET /api/v1/admin/users/:userId/stats
+  getUserStats: (userId) => api.get(`/admin/users/${userId}/stats`),
   
   // PUT /api/v1/orders/:id/status (Admin only) - Fixed endpoint
   updateOrderStatus: (id, status) => api.put(`/orders/${id}/status`, { status }),
@@ -131,14 +163,53 @@ export const paymentAPI = {
   // POST /api/v1/payments/create-payment-intent
   createPaymentIntent: (orderId) => api.post('/payments/create-payment-intent', { orderId }),
   
+  // POST /api/v1/payments/create-payment-intent-for-order
+  createPaymentIntentForOrder: (orderData) => api.post('/payments/create-payment-intent-for-order', { orderData }),
+  
   // GET /api/v1/payments/details/:orderId
   getPaymentDetails: (orderId) => api.get(`/payments/details/${orderId}`),
   
-  // PUT /api/v1/payments/status/:orderId
-  updatePaymentStatus: (orderId, paymentIntentId, status) => api.put(`/payments/status/${orderId}`, { paymentIntentId, status }),
+  // GET /api/v1/payments/verify/:orderId (secure server-side verification)
+  verifyPaymentStatus: (orderId) => api.get(`/payments/verify/${orderId}`),
   
   // POST /api/v1/payments/refund
   processRefund: (orderId, reason) => api.post('/payments/refund', { orderId, reason }),
+
+  // POST /api/v1/payments/request-refund
+  requestRefund: (orderId, reason) => api.post('/payments/request-refund', { orderId, reason }),
+};
+
+// Notifications API
+export const notificationsAPI = {
+  // GET /api/v1/notifications
+  getNotifications: (params = {}) => api.get('/notifications', { params }),
+  
+  // GET /api/v1/notifications/unread-count
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  
+  // PUT /api/v1/notifications/mark-read
+  markAsRead: (notificationIds) => api.put('/notifications/mark-read', { notificationIds }),
+  
+  // PUT /api/v1/notifications/mark-all-read
+  markAllAsRead: () => api.put('/notifications/mark-all-read'),
+  
+  // DELETE /api/v1/notifications/:notificationId
+  deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`),
+  
+  // GET /api/v1/notifications/stats (Admin only)
+  getNotificationStats: () => api.get('/notifications/stats'),
+};
+
+// Newsletter API
+export const newsletterAPI = {
+  // POST /api/v1/newsletter/subscribe
+  subscribe: (email) => api.post('/newsletter/subscribe', { email }),
+  
+  // POST /api/v1/newsletter/unsubscribe
+  unsubscribe: (email, token) => api.post('/newsletter/unsubscribe', { email, token }),
+  
+  // GET /api/v1/newsletter/stats (Admin only)
+  getStats: () => api.get('/newsletter/stats'),
 };
 
 // Health check

@@ -7,10 +7,12 @@ import { CartProvider } from './context/CartContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import AdminLayout from './components/layout/AdminLayout';
+import ScrollToTop from './components/ScrollToTop';
 
 // Pages
 import Home from './pages/Home';
 import Menu from './pages/Menu';
+import MenuCard from './pages/MenuCard';
 import DishDetail from './pages/DishDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -19,6 +21,7 @@ import Register from './pages/auth/Register';
 import Profile from './pages/auth/Profile';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
+import Notifications from './pages/Notifications';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -36,6 +39,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <Router>
+          <ScrollToTop />
           <div className="min-h-screen bg-gray-50">
             <Routes>
               {/* Admin Routes - No Navbar/Footer */}
@@ -57,6 +61,13 @@ function App() {
                 <AdminRoute>
                   <AdminLayout>
                     <AdminMenu />
+                  </AdminLayout>
+                </AdminRoute>
+              } />
+              <Route path="/admin/menu-card" element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <MenuCard />
                   </AdminLayout>
                 </AdminRoute>
               } />
@@ -90,6 +101,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Home />} />
                       <Route path="/menu" element={<Menu />} />
+                      <Route path="/menu-card" element={<MenuCard />} />
                       <Route path="/dish/:id" element={<DishDetail />} />
                       <Route path="/cart" element={<Cart />} />
                       <Route path="/login" element={<Login />} />
@@ -125,6 +137,14 @@ function App() {
                         element={
                           <ProtectedRoute>
                             <OrderDetail />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/notifications"
+                        element={
+                          <ProtectedRoute>
+                            <Notifications />
                           </ProtectedRoute>
                         }
                       />

@@ -11,14 +11,17 @@ const getAllOrders = async (req, res, next) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const startIndex = (page - 1) * limit;
 
-    // Filter by status if provided
-    let query = {};
-    if (req.query.status) {
+    // Filter by status if provided (admin can see all orders except admin-deleted ones)
+    let query = { isDeletedByAdmin: { $ne: true } }; // Exclude admin-deleted orders from list
+    if (req.query.status && req.query.status !== '') {
+      // Specific status filter - show only that status
       query.status = req.query.status;
     } else {
-      // For "All Orders" filter, exclude completed and cancelled orders
-      query.status = { $nin: ['completed', 'cancelled'] };
+      // For "All Orders" filter, exclude pending, completed and cancelled orders
+      // This shows only orders that have been paid for and need admin attention
+      query.status = { $nin: ['pending', 'completed', 'cancelled'] };
     }
+    // Note: Admin can see all orders except those they've deleted, including those soft-deleted by customers
 
     // Filter by date range if provided
     if (req.query.startDate || req.query.endDate) {
@@ -36,7 +39,7 @@ const getAllOrders = async (req, res, next) => {
     const orders = await Order.find(query)
       .populate({
         path: 'user',
-        select: 'name email phone'
+        select: 'name email phone createdAt'
       })
       .populate({
         path: 'items.dish',
@@ -45,6 +48,7 @@ const getAllOrders = async (req, res, next) => {
       .sort('-createdAt')
       .limit(limit)
       .skip(startIndex);
+
 
     // Pagination result
     const pagination = {};
@@ -85,31 +89,34 @@ const getDashboardStats = async (req, res, next) => {
     const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Total orders
+    // IMPORTANT: Include soft-deleted orders in statistics for historical accuracy
+    // This ensures that when customers delete their order history, the business stats remain intact
+    
+    // Total orders (including soft-deleted)
     const totalOrders = await Order.countDocuments();
 
-    // Today's orders
+    // Today's orders (including soft-deleted)
     const todayOrders = await Order.countDocuments({
       createdAt: { $gte: startOfDay }
     });
 
-    // This week's orders
+    // This week's orders (including soft-deleted)
     const weekOrders = await Order.countDocuments({
       createdAt: { $gte: startOfWeek }
     });
 
-    // This month's orders
+    // This month's orders (including soft-deleted)
     const monthOrders = await Order.countDocuments({
       createdAt: { $gte: startOfMonth }
     });
 
-    // Total revenue
+    // Total revenue (including soft-deleted completed orders)
     const totalRevenue = await Order.aggregate([
       { $match: { status: { $in: ['completed'] } } },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
 
-    // Today's revenue
+    // Today's revenue (including soft-deleted completed orders)
     const todayRevenue = await Order.aggregate([
       {
         $match: {
@@ -120,12 +127,12 @@ const getDashboardStats = async (req, res, next) => {
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
 
-    // Orders by status
+    // Orders by status (including soft-deleted)
     const ordersByStatus = await Order.aggregate([
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
-    // Most popular dishes
+    // Most popular dishes (including soft-deleted orders)
     const popularDishes = await Order.aggregate([
       { $unwind: '$items' },
       {
@@ -156,7 +163,7 @@ const getDashboardStats = async (req, res, next) => {
       }
     ]);
 
-    // Revenue by month (last 6 months)
+    // Revenue by month (last 6 months) - including soft-deleted orders
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -288,7 +295,7 @@ const toggleUserStatus = async (req, res, next) => {
   }
 };
 
-// Delete Order (Admin only)
+// Soft Delete Order (Admin only) - Hide from admin view but preserve for statistics
 const deleteOrder = async (req, res, next) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -308,11 +315,70 @@ const deleteOrder = async (req, res, next) => {
       });
     }
 
-    await Order.findByIdAndDelete(req.params.id);
+    // Soft delete: mark as deleted by admin (preserves data for statistics)
+    await Order.findByIdAndUpdate(req.params.id, {
+      isDeletedByAdmin: true,
+      deletedByAdminAt: new Date()
+    });
 
     res.status(200).json({
       success: true,
-      message: 'Order deleted successfully'
+      message: 'Order removed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get user statistics
+// @route   GET /api/v1/admin/users/:userId/stats
+// @access  Private (Admin only)
+const getUserStats = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    // IMPORTANT: Include soft-deleted orders in user statistics for historical accuracy
+    // This ensures that when customers delete their order history, their stats remain intact
+    const userOrders = await Order.find({ user: userId })
+      .populate('items.dish', 'name category')
+      .sort('-createdAt');
+
+    // Calculate statistics (including soft-deleted orders)
+    const totalOrders = userOrders.length;
+    
+    const completedOrders = userOrders.filter(order => order.status === 'completed');
+    const totalSpent = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    
+    // Get the most recent completed order, or the most recent order if no completed orders
+    const lastOrder = completedOrders.length > 0 ? completedOrders[0] : (userOrders.length > 0 ? userOrders[0] : null);
+    
+    // Calculate favorite category (including soft-deleted orders)
+    const categoryCount = {};
+    completedOrders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.dish && item.dish.category) {
+          categoryCount[item.dish.category] = (categoryCount[item.dish.category] || 0) + item.quantity;
+        }
+      });
+    });
+    
+    const favoriteCategory = Object.keys(categoryCount).length > 0 
+      ? Object.keys(categoryCount).reduce((a, b) => categoryCount[a] > categoryCount[b] ? a : b)
+      : null;
+
+    res.json({
+      success: true,
+      data: {
+        totalOrders,
+        totalSpent: parseFloat(totalSpent.toFixed(2)),
+        lastOrder: lastOrder ? {
+          orderNumber: lastOrder.orderNumber,
+          date: lastOrder.createdAt,
+          status: lastOrder.status,
+          total: lastOrder.totalAmount
+        } : null,
+        favoriteCategory
+      }
     });
   } catch (error) {
     next(error);
@@ -324,5 +390,6 @@ module.exports = {
   getDashboardStats,
   getAllUsers,
   toggleUserStatus,
-  deleteOrder
+  deleteOrder,
+  getUserStats
 };

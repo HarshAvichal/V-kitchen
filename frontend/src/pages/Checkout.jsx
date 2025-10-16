@@ -1,40 +1,145 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { ordersAPI } from '../services/api';
 import PaymentForm from '../components/PaymentForm';
+import { formatPhoneNumber, validatePhoneNumber, cleanPhoneNumber } from '../utils/phoneUtils';
 import { 
   MapPinIcon,
   PhoneIcon,
   CreditCardIcon,
-  TruckIcon
+  TruckIcon,
+  HomeIcon,
+  BuildingOfficeIcon,
+  TagIcon,
+  PlusIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const Checkout = () => {
-  const { items, totalAmount, clearCart } = useCart();
-  const { user } = useAuth();
+  const { items, totalAmount, clearCart, isEmpty } = useCart();
+  const { user, getDeliveryAddresses } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [currentStep, setCurrentStep] = useState('details'); // 'details' or 'payment'
-  const [createdOrder, setCreatedOrder] = useState(null);
+  const [orderData, setOrderData] = useState(null);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+
+  // Redirect to menu if cart is empty
+  useEffect(() => {
+    if (isEmpty) {
+      toast.error('Your cart is empty. Please add items to continue.');
+      navigate('/menu');
+    }
+  }, [isEmpty, navigate]);
+
+  // Load saved addresses
+  useEffect(() => {
+    loadSavedAddresses();
+  }, []);
+
+  const loadSavedAddresses = async () => {
+    const result = await getDeliveryAddresses();
+    if (result.success) {
+      setSavedAddresses(result.data);
+      // Set default address if available
+      const defaultAddress = result.data.find(addr => addr.isDefault);
+      if (defaultAddress) {
+        setSelectedAddressId(defaultAddress._id);
+        setFormData(prev => ({
+          ...prev,
+          deliveryAddress: {
+            street: defaultAddress.street,
+            city: defaultAddress.city,
+            state: defaultAddress.state,
+            zipCode: defaultAddress.zipCode,
+            landmark: '',
+            instructions: ''
+          }
+        }));
+      }
+    }
+  };
+
+  const handleAddressSelect = (addressId) => {
+    setSelectedAddressId(addressId);
+    const address = savedAddresses.find(addr => addr._id === addressId);
+    if (address) {
+      setFormData(prev => ({
+        ...prev,
+        deliveryAddress: {
+          street: address.street,
+          city: address.city,
+          state: address.state,
+          zipCode: address.zipCode,
+          landmark: '',
+          instructions: ''
+        }
+      }));
+    }
+  };
+
+  const getAddressIcon = (label) => {
+    switch (label) {
+      case 'Home':
+        return <HomeIcon className="h-4 w-4" />;
+      case 'Work':
+        return <BuildingOfficeIcon className="h-4 w-4" />;
+      default:
+        return <TagIcon className="h-4 w-4" />;
+    }
+  };
+
+  // Show loading while checking cart
+  if (isEmpty) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const [formData, setFormData] = useState({
     deliveryType: 'delivery',
     deliveryAddress: {
-      street: user?.address?.street || '',
-      city: user?.address?.city || '',
-      state: user?.address?.state || '',
-      zipCode: user?.address?.zipCode || '',
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
       landmark: '',
       instructions: ''
     },
-    contactPhone: user?.phone || '',
-    paymentMethod: 'cash',
+    contactPhone: '',
+    paymentMethod: 'card',
     specialInstructions: ''
   });
+
+  // Initialize form data when user data is available
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        deliveryAddress: {
+          street: user.address?.street || '',
+          city: user.address?.city || '',
+          state: user.address?.state || '',
+          zipCode: user.address?.zipCode || '',
+          landmark: '',
+          instructions: ''
+        },
+        contactPhone: user.phone ? formatPhoneNumber(user.phone) : ''
+      }));
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,6 +152,13 @@ const Checkout = () => {
           ...prev.deliveryAddress,
           [field]: value
         }
+      }));
+    } else if (name === 'contactPhone') {
+      // Format phone number as user types
+      const formattedPhone = formatPhoneNumber(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: formattedPhone
       }));
     } else {
       setFormData(prev => ({
@@ -69,6 +181,8 @@ const Checkout = () => {
 
     if (!formData.contactPhone) {
       newErrors.contactPhone = 'Contact phone is required';
+    } else if (!validatePhoneNumber(formData.contactPhone)) {
+      newErrors.contactPhone = 'Please enter a valid 10-digit phone number';
     }
 
     if (formData.deliveryType === 'delivery') {
@@ -98,46 +212,35 @@ const Checkout = () => {
       return;
     }
 
-    setIsSubmitting(true);
+    // Store order data for payment step
+    const orderData = {
+      items: items.map(item => ({
+        dish: item.dish._id,
+        quantity: item.quantity
+      })),
+      deliveryType: formData.deliveryType,
+      contactPhone: cleanPhoneNumber(formData.contactPhone), // Store clean phone number
+      specialInstructions: formData.specialInstructions
+    };
 
-    try {
-      const orderData = {
-        items: items.map(item => ({
-          dish: item.dish._id,
-          quantity: item.quantity
-        })),
-        deliveryType: formData.deliveryType,
-        contactPhone: formData.contactPhone,
-        specialInstructions: formData.specialInstructions
+    if (formData.deliveryType === 'delivery') {
+      orderData.deliveryAddress = {
+        street: formData.deliveryAddress.street,
+        city: formData.deliveryAddress.city,
+        state: formData.deliveryAddress.state,
+        zipCode: formData.deliveryAddress.zipCode,
+        landmark: formData.deliveryAddress.landmark || '',
+        instructions: formData.deliveryAddress.instructions || ''
       };
-
-      if (formData.deliveryType === 'delivery') {
-        orderData.deliveryAddress = {
-          street: formData.deliveryAddress.street,
-          city: formData.deliveryAddress.city,
-          state: formData.deliveryAddress.state,
-          zipCode: formData.deliveryAddress.zipCode,
-          landmark: formData.deliveryAddress.landmark || '',
-          instructions: formData.deliveryAddress.instructions || ''
-        };
-      }
-
-      const response = await ordersAPI.createOrder(orderData);
-      setCreatedOrder(response.data.data);
-      setCurrentStep('payment');
-      toast.success('Order created! Please complete payment.');
-    } catch (error) {
-      console.error('Error creating order:', error);
-      const message = error.response?.data?.message || 'Failed to place order';
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
     }
+
+    setOrderData(orderData);
+    setCurrentStep('payment');
   };
 
-  const handlePaymentSuccess = (paymentIntent) => {
-    console.log('Payment successful:', paymentIntent);
-    toast.success('Payment successful! Order confirmed.');
+  const handlePaymentSuccess = (paymentData) => {
+    const createdOrder = paymentData.order;
+    // Toast will be shown by notification system
     clearCart();
     navigate(`/order/${createdOrder._id}`);
   };
@@ -239,7 +342,8 @@ const Checkout = () => {
                     className={`w-full px-3 py-2 border ${
                       errors.contactPhone ? 'border-red-300' : 'border-gray-300'
                     } rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500`}
-                    placeholder="Enter your phone number"
+                    placeholder="(845) 597-5135"
+                    maxLength="14"
                   />
                   {errors.contactPhone && (
                     <p className="mt-1 text-sm text-red-600">{errors.contactPhone}</p>
@@ -250,10 +354,90 @@ const Checkout = () => {
               {/* Delivery Address */}
               {formData.deliveryType === 'delivery' && (
                 <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <MapPinIcon className="h-5 w-5 mr-2" />
-                    Delivery Address
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <MapPinIcon className="h-5 w-5 mr-2" />
+                      Delivery Address
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/profile?tab=addresses')}
+                      className="text-sm text-orange-600 hover:text-orange-700 flex items-center"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-1" />
+                      Manage Addresses
+                    </button>
+                  </div>
+                  
+                  {/* Saved Addresses Selection */}
+                  {savedAddresses.length > 0 && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Choose from saved addresses
+                      </label>
+                      <div className="grid grid-cols-1 gap-3">
+                        {savedAddresses.map((address) => (
+                          <div
+                            key={address._id}
+                            className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                              selectedAddressId === address._id
+                                ? 'border-orange-500 bg-orange-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => handleAddressSelect(address._id)}
+                          >
+                            <div className="flex items-start">
+                              <div className="flex-shrink-0 mt-0.5">
+                                {getAddressIcon(address.label)}
+                              </div>
+                              <div className="ml-3 flex-1">
+                                <div className="flex items-center">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {address.label === 'Other' ? address.customLabel : address.label}
+                                  </p>
+                                  {address.isDefault && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {address.street}, {address.city}, {address.state} {address.zipCode}
+                                </p>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <input
+                                  type="radio"
+                                  name="selectedAddress"
+                                  value={address._id}
+                                  checked={selectedAddressId === address._id}
+                                  onChange={() => handleAddressSelect(address._id)}
+                                  className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {savedAddresses.length === 0 && (
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        No saved addresses found. You can add addresses in your profile for faster checkout.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Separator */}
+                  {savedAddresses.length > 0 && (
+                    <div className="flex items-center my-6">
+                      <div className="flex-1 border-t border-gray-200"></div>
+                      <span className="px-3 text-sm text-gray-500 bg-white">Or enter new address</span>
+                      <div className="flex-1 border-t border-gray-200"></div>
+                    </div>
+                  )}
                   
                   <div className="space-y-4">
                     <div>
@@ -404,13 +588,13 @@ const Checkout = () => {
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="cash"
-                      checked={formData.paymentMethod === 'cash'}
+                      value="card"
+                      checked={formData.paymentMethod === 'card'}
                       onChange={handleChange}
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                     />
                     <span className="ml-3 text-sm font-medium text-gray-700">
-                      Cash on Delivery
+                      Credit/Debit Card
                     </span>
                   </label>
                   
@@ -485,9 +669,9 @@ const Checkout = () => {
                 Payment Information
               </h2>
               
-              {createdOrder && (
+              {orderData && (
                 <PaymentForm
-                  orderId={createdOrder._id}
+                  orderData={orderData}
                   totalAmount={totalAmount}
                   onPaymentSuccess={handlePaymentSuccess}
                   onPaymentError={handlePaymentError}

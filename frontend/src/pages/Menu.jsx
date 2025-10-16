@@ -1,31 +1,34 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { dishesAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useMenuUpdates } from '../hooks/useMenuUpdates';
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon,
-  StarIcon,
   PlusIcon,
   MinusIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const Menu = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dishes, setDishes] = useState([]);
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Initialize filters from URL parameters
   const [filters, setFilters] = useState({
-    search: '',
-    category: '',
-    tags: [],
-    minPrice: '',
-    maxPrice: '',
-    sort: 'newest'
+    search: searchParams.get('search') || '',
+    category: searchParams.get('category') || '',
+    tags: searchParams.get('tags') ? searchParams.get('tags').split(',') : [],
+    minPrice: searchParams.get('minPrice') || '',
+    maxPrice: searchParams.get('maxPrice') || '',
+    sort: searchParams.get('sort') || 'newest'
   });
   const [pagination, setPagination] = useState({
-    page: 1,
+    page: parseInt(searchParams.get('page')) || 1,
     limit: 12,
     total: 0
   });
@@ -33,13 +36,88 @@ const Menu = () => {
 
   const { addToCart } = useCart();
 
+  // Handle real-time menu updates
+  const handleMenuUpdate = useCallback((data) => {
+    
+    // Refresh dishes when menu is updated
+    fetchDishes();
+    
+    // Show toast notification for new dishes
+    if (data.action === 'created' || data.updateType === 'dish-added') {
+      const dishName = data.dish?.name || data.data?.name;
+      if (dishName) {
+        toast.success(`New dish added: ${dishName}`, {
+          duration: 3000,
+          icon: '🍽️'
+        });
+      }
+    }
+  }, []);
+
+  // Use menu updates hook
+  useMenuUpdates(handleMenuUpdate);
+
+  // Update URL parameters when filters change
+  const updateURLParams = (newFilters, newPagination) => {
+    const params = new URLSearchParams();
+    
+    if (newFilters.search) {
+      params.set('search', newFilters.search);
+    }
+    if (newFilters.category) {
+      params.set('category', newFilters.category);
+    }
+    if (newFilters.tags && newFilters.tags.length > 0) {
+      params.set('tags', newFilters.tags.join(','));
+    }
+    if (newFilters.minPrice) {
+      params.set('minPrice', newFilters.minPrice);
+    }
+    if (newFilters.maxPrice) {
+      params.set('maxPrice', newFilters.maxPrice);
+    }
+    if (newFilters.sort && newFilters.sort !== 'newest') {
+      params.set('sort', newFilters.sort);
+    }
+    if (newPagination.page && newPagination.page > 1) {
+      params.set('page', newPagination.page.toString());
+    }
+    
+    setSearchParams(params);
+  };
+
   useEffect(() => {
     fetchDishes();
     fetchCategories();
     fetchTags();
   }, [filters, pagination.page]);
 
-  const fetchDishes = async () => {
+  // Handle URL parameter changes (e.g., browser back/forward)
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    const urlCategory = searchParams.get('category') || '';
+    const urlTags = searchParams.get('tags') ? searchParams.get('tags').split(',') : [];
+    const urlMinPrice = searchParams.get('minPrice') || '';
+    const urlMaxPrice = searchParams.get('maxPrice') || '';
+    const urlSort = searchParams.get('sort') || 'newest';
+    const urlPage = parseInt(searchParams.get('page')) || 1;
+    
+    const urlFilters = {
+      search: urlSearch,
+      category: urlCategory,
+      tags: urlTags,
+      minPrice: urlMinPrice,
+      maxPrice: urlMaxPrice,
+      sort: urlSort
+    };
+    
+    if (JSON.stringify(urlFilters) !== JSON.stringify(filters) || urlPage !== pagination.page) {
+      setFilters(urlFilters);
+      setPagination(prev => ({ ...prev, page: urlPage }));
+    }
+  }, [searchParams]);
+
+  const fetchDishes = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
@@ -65,7 +143,7 @@ const Menu = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, filters]);
 
   const fetchCategories = async () => {
     try {
@@ -86,27 +164,36 @@ const Menu = () => {
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [key]: value
-    }));
-    setPagination(prev => ({
-      ...prev,
+    };
+    const newPagination = {
+      ...pagination,
       page: 1
-    }));
+    };
+    
+    setFilters(newFilters);
+    setPagination(newPagination);
+    updateURLParams(newFilters, newPagination);
   };
 
   const handleTagToggle = (tag) => {
-    setFilters(prev => ({
-      ...prev,
-      tags: prev.tags.includes(tag)
-        ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag]
-    }));
-    setPagination(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
+      tags: filters.tags.includes(tag)
+        ? filters.tags.filter(t => t !== tag)
+        : [...filters.tags, tag]
+    };
+    
+    const newPagination = {
+      ...pagination,
       page: 1
-    }));
+    };
+    
+    setFilters(newFilters);
+    setPagination(newPagination);
+    updateURLParams(newFilters, newPagination);
   };
 
   const handleAddToCart = (dish) => {
@@ -115,18 +202,22 @@ const Menu = () => {
   };
 
   const clearFilters = () => {
-    setFilters({
+    const newFilters = {
       search: '',
       category: '',
       tags: [],
       minPrice: '',
       maxPrice: '',
       sort: 'newest'
-    });
-    setPagination(prev => ({
-      ...prev,
+    };
+    const newPagination = {
+      ...pagination,
       page: 1
-    }));
+    };
+    
+    setFilters(newFilters);
+    setPagination(newPagination);
+    updateURLParams(newFilters, newPagination);
   };
 
   const totalPages = Math.ceil(pagination.total / pagination.limit);
@@ -321,10 +412,6 @@ const Menu = () => {
                       <span className="text-2xl font-bold text-orange-600">
                         ${dish.price}
                       </span>
-                      <div className="flex items-center">
-                        <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="ml-1 text-sm text-gray-600">4.5</span>
-                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-1 mb-3">
@@ -355,7 +442,11 @@ const Menu = () => {
               <div className="mt-8 flex justify-center">
                 <nav className="flex items-center space-x-2">
                   <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                    onClick={() => {
+                      const newPagination = { ...pagination, page: pagination.page - 1 };
+                      setPagination(newPagination);
+                      updateURLParams(filters, newPagination);
+                    }}
                     disabled={pagination.page === 1}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -365,7 +456,11 @@ const Menu = () => {
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <button
                       key={page}
-                      onClick={() => setPagination(prev => ({ ...prev, page }))}
+                      onClick={() => {
+                        const newPagination = { ...pagination, page };
+                        setPagination(newPagination);
+                        updateURLParams(filters, newPagination);
+                      }}
                       className={`px-3 py-2 border rounded-md text-sm font-medium ${
                         page === pagination.page
                           ? 'bg-orange-500 text-white border-orange-500'
@@ -377,7 +472,11 @@ const Menu = () => {
                   ))}
                   
                   <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                    onClick={() => {
+                      const newPagination = { ...pagination, page: pagination.page + 1 };
+                      setPagination(newPagination);
+                      updateURLParams(filters, newPagination);
+                    }}
                     disabled={pagination.page === totalPages}
                     className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >

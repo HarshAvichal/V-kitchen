@@ -10,7 +10,12 @@ const {
   getMe,
   updateProfile,
   changePassword,
-  logout
+  logout,
+  getDeliveryAddresses,
+  addDeliveryAddress,
+  updateDeliveryAddress,
+  deleteDeliveryAddress,
+  setDefaultAddress
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -24,5 +29,13 @@ router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/password', protect, changePassword);
 router.post('/logout', protect, logout);
+
+// Delivery addresses routes
+router.get('/addresses', protect, getDeliveryAddresses);
+router.post('/addresses', protect, addDeliveryAddress);
+router.put('/addresses/:addressId', protect, updateDeliveryAddress);
+router.delete('/addresses/:addressId', protect, deleteDeliveryAddress);
+router.put('/addresses/:addressId/default', protect, setDefaultAddress);
+
 
 module.exports = router;

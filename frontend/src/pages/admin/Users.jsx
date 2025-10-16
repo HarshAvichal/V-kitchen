@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
+import { formatPhoneNumber } from '../../utils/phoneUtils';
 import { 
   EyeIcon,
-  UserPlusIcon,
-  UserMinusIcon,
   EnvelopeIcon,
-  PhoneIcon
+  PhoneIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -15,6 +15,12 @@ const AdminUsers = () => {
   const [filters, setFilters] = useState({
     page: 1,
     limit: 20
+  });
+  const [previewModal, setPreviewModal] = useState({
+    isOpen: false,
+    user: null,
+    stats: null,
+    loadingStats: false
   });
 
   useEffect(() => {
@@ -34,16 +40,6 @@ const AdminUsers = () => {
     }
   };
 
-  const handleToggleUserStatus = async (userId, currentStatus) => {
-    try {
-      await adminAPI.toggleUserStatus(userId);
-      toast.success(`User ${currentStatus ? 'deactivated' : 'activated'} successfully`);
-      fetchUsers();
-    } catch (error) {
-      console.error('Error toggling user status:', error);
-      toast.error('Failed to update user status');
-    }
-  };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -51,6 +47,54 @@ const AdminUsers = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Helper function to format date with day suffix (e.g., 9th Oct 2025)
+  const formatDateWithSuffix = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('en-US', { month: 'short' }); // e.g., Oct
+    const year = date.getFullYear();
+
+    let suffix = 'th';
+    if (day === 1 || day === 21 || day === 31) {
+      suffix = 'st';
+    } else if (day === 2 || day === 22) {
+      suffix = 'nd';
+    } else if (day === 3 || day === 23) {
+      suffix = 'rd';
+    }
+    return `${day}${suffix} ${month} ${year}`;
+  };
+
+  const handlePreviewClick = async (user) => {
+    setPreviewModal({
+      isOpen: true,
+      user: user,
+      stats: null,
+      loadingStats: true
+    });
+
+    try {
+      const response = await adminAPI.getUserStats(user._id);
+      setPreviewModal(prev => ({
+        ...prev,
+        stats: response.data.data,
+        loadingStats: false
+      }));
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      setPreviewModal(prev => ({
+        ...prev,
+        stats: null,
+        loadingStats: false
+      }));
+    }
+  };
+
+  const handlePreviewClose = () => {
+    setPreviewModal({ isOpen: false, user: null, stats: null, loadingStats: false });
   };
 
   if (loading) {
@@ -122,7 +166,7 @@ const AdminUsers = () => {
                       </div>
                       <div className="text-sm text-gray-500 flex items-center">
                         <PhoneIcon className="h-4 w-4 mr-2 text-gray-400" />
-                        {user.phone}
+                        {formatPhoneNumber(user.phone)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -138,25 +182,13 @@ const AdminUsers = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <button className="text-blue-600 hover:text-blue-900">
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleToggleUserStatus(user._id, user.isActive)}
-                          className={`${
-                            user.isActive 
-                              ? 'text-red-600 hover:text-red-900' 
-                              : 'text-green-600 hover:text-green-900'
-                          }`}
-                        >
-                          {user.isActive ? (
-                            <UserMinusIcon className="h-4 w-4" />
-                          ) : (
-                            <UserPlusIcon className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
+                      <button 
+                        onClick={() => handlePreviewClick(user)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View User Details"
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -168,6 +200,125 @@ const AdminUsers = () => {
         {users.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500">No users found.</p>
+          </div>
+        )}
+
+        {/* User Preview Modal */}
+        {previewModal.isOpen && previewModal.user && (
+          <div 
+            className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={handlePreviewClose}
+          >
+            <div 
+              className="relative w-full max-w-4xl bg-white rounded-lg shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-6 border-b">
+                <h3 className="text-lg font-medium text-gray-900">
+                  User Details - {previewModal.user.name}
+                </h3>
+                <button
+                  onClick={handlePreviewClose}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircleIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* User Information */}
+                  <div className="space-y-4">
+                    <h4 className="text-md font-semibold text-gray-900 border-b pb-2">Personal Information</h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Name:</span>
+                        <span className="text-sm font-medium">{previewModal.user.name}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Email:</span>
+                        <span className="text-sm font-medium">{previewModal.user.email}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Phone:</span>
+                        <span className="text-sm font-medium">
+                          {previewModal.user.phone ? formatPhoneNumber(previewModal.user.phone) : 'N/A'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Member Since:</span>
+                        <span className="text-sm font-medium">
+                          {formatDateWithSuffix(previewModal.user.createdAt)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Account Status:</span>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          previewModal.user.isActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {previewModal.user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Account Statistics */}
+                  <div className="space-y-4">
+                    <h4 className="text-md font-semibold text-gray-900 border-b pb-2">Account Statistics</h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Total Orders:</span>
+                        <span className="text-sm font-medium">
+                          {previewModal.loadingStats ? 'Loading...' : (previewModal.stats?.totalOrders || 0)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Total Spent:</span>
+                        <span className="text-sm font-medium">
+                          {previewModal.loadingStats ? 'Loading...' : `$${(previewModal.stats?.totalSpent || 0).toFixed(2)}`}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Last Order:</span>
+                        <span className="text-sm font-medium">
+                          {previewModal.loadingStats ? 'Loading...' : 
+                            previewModal.stats?.lastOrder ? 
+                              `${previewModal.stats.lastOrder.orderNumber} (${formatDate(previewModal.stats.lastOrder.date)})` : 
+                              'Never'
+                          }
+                        </span>
+                      </div>
+                      
+                    </div>
+
+                    {/* Recent Activity */}
+                    <div className="mt-6">
+                      <h5 className="text-sm font-semibold text-gray-900 mb-3">Recent Activity</h5>
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-500">
+                          Account created on {formatDateWithSuffix(previewModal.user.createdAt)}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Last updated on {formatDateWithSuffix(previewModal.user.updatedAt)}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

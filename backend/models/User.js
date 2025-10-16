@@ -52,6 +52,50 @@ const userSchema = new mongoose.Schema({
       default: 'India'
     }
   },
+  deliveryAddresses: [{
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: () => new mongoose.Types.ObjectId()
+    },
+    label: {
+      type: String,
+      required: [true, 'Please add a label for this address'],
+      enum: ['Home', 'Work', 'Other'],
+      default: 'Home'
+    },
+    customLabel: {
+      type: String,
+      maxlength: [20, 'Custom label cannot be more than 20 characters']
+    },
+    street: {
+      type: String,
+      required: [true, 'Please add street address']
+    },
+    city: {
+      type: String,
+      required: [true, 'Please add city']
+    },
+    state: {
+      type: String,
+      required: [true, 'Please add state']
+    },
+    zipCode: {
+      type: String,
+      required: [true, 'Please add ZIP code']
+    },
+    country: {
+      type: String,
+      default: 'India'
+    },
+    isDefault: {
+      type: Boolean,
+      default: false
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now

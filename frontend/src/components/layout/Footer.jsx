@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
+import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
 
 const Footer = () => {
   return (
     <footer className="bg-gray-900 text-white">
+
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
@@ -69,11 +71,23 @@ const Footer = () => {
           {/* Contact Info */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
-            <div className="space-y-2 text-gray-300">
-              <p>📞 +91 98765 43210</p>
-              <p>✉️ info@vkitchen.com</p>
-              <p>📍 Mumbai, Maharashtra</p>
-              <p>🕒 Mon-Sun: 8:00 AM - 10:00 PM</p>
+            <div className="space-y-3 text-gray-300">
+              <div className="flex items-center space-x-3">
+                <FaPhone className="h-4 w-4 text-orange-500" />
+                <span>+1 (845) 597-5135</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <FaEnvelope className="h-4 w-4 text-orange-500" />
+                <span>v-kitchen@gmail.com</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <FaMapMarkerAlt className="h-4 w-4 text-orange-500" />
+                <span>New York City, NY</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <FaClock className="h-4 w-4 text-orange-500" />
+                <span>Mon-Sun: 8:00 AM - 10:00 PM</span>
+              </div>
             </div>
           </div>
         </div>
@@ -81,7 +95,7 @@ const Footer = () => {
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2024 V Kitchen. All rights reserved.
+              © 2025 V Kitchen. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
