@@ -44,14 +44,6 @@ function App() {
   console.log('React version:', React.version);
   console.log('App component rendering...');
   
-  // Simple test to see if React is working
-  return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <h1 className="text-4xl font-bold text-orange-500">V-Kitchen Test</h1>
-      <p className="text-gray-600 mt-4">If you can see this, React is working!</p>
-    </div>
-  );
-  
   return (
     <AuthProvider>
       <CartProvider>
