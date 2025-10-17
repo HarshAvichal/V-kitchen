@@ -49,7 +49,7 @@ function App() {
       <CartProvider>
         <Router>
           <ScrollToTop />
-          <div className="min-h-screen bg-gray-50">
+          <div className="min-h-screen bg-gray-50" style={{backgroundColor: '#f9fafb', minHeight: '100vh'}}>
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
               {/* Admin Routes - No Navbar/Footer */}
