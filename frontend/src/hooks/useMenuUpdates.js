@@ -5,25 +5,17 @@ import toast from 'react-hot-toast';
 export const useMenuUpdates = (onMenuUpdate) => {
   const { socket, isConnected, on, off } = useWebSocket();
 
-  // Handle dish updates
-  const handleDishUpdate = useCallback((data) => {
-    
-    if (onMenuUpdate) {
-      onMenuUpdate(data);
-    }
-  }, [onMenuUpdate]);
-
-  // Handle menu updates
-  const handleMenuUpdate = useCallback((data) => {
-    
-    if (onMenuUpdate) {
-      onMenuUpdate(data);
-    }
-  }, [onMenuUpdate]);
-
   // Set up event listeners
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !onMenuUpdate) return;
+
+    const handleDishUpdate = (data) => {
+      onMenuUpdate(data);
+    };
+
+    const handleMenuUpdate = (data) => {
+      onMenuUpdate(data);
+    };
 
     on('dish-updated', handleDishUpdate);
     on('menu-updated', handleMenuUpdate);
@@ -32,7 +24,7 @@ export const useMenuUpdates = (onMenuUpdate) => {
       off('dish-updated', handleDishUpdate);
       off('menu-updated', handleMenuUpdate);
     };
-  }, [socket, on, off, handleDishUpdate, handleMenuUpdate]);
+  }, [socket, on, off, onMenuUpdate]);
 
   return {
     isConnected,
