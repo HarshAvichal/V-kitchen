@@ -19,7 +19,11 @@ export const useWebSocket = () => {
     }
 
     // Initialize WebSocket connection with optimized settings
-    const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:5001', {
+    // Use the same base URL as the API, but without the /api/v1 suffix
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
+    const wsUrl = apiBaseUrl.replace('/api/v1', '');
+    console.log('WebSocket connecting to:', wsUrl);
+    const socket = io(import.meta.env.VITE_WS_URL || wsUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
       timeout: 10000, // Reduced timeout for faster connection
@@ -37,6 +41,7 @@ export const useWebSocket = () => {
 
     // Connection event handlers
     socket.on('connect', () => {
+      console.log('WebSocket connected successfully');
       setIsConnected(true);
       setConnectionError(null);
     });
