@@ -65,10 +65,12 @@ const getDishes = async (req, res, next) => {
     const total = await Dish.countDocuments(query);
 
     const dishes = await Dish.find(query)
+      .select('name description price imageUrl category availability tags preparationTime isActive createdAt')
       .sort(sortBy)
       .limit(limit)
       .skip(startIndex)
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email')
+      .lean(); // Use lean() for better performance when we don't need full mongoose documents
 
     // Pagination result
     const pagination = {};
@@ -87,6 +89,12 @@ const getDishes = async (req, res, next) => {
       };
     }
 
+    // Set cache headers for better performance
+    res.set({
+      'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+      'ETag': `"${Date.now()}"` // Simple ETag for cache validation
+    });
+
     res.status(200).json({
       success: true,
       count: dishes.length,
@@ -104,7 +112,10 @@ const getDishes = async (req, res, next) => {
 // @access  Public
 const getDish = async (req, res, next) => {
   try {
-    const dish = await Dish.findById(req.params.id).populate('createdBy', 'name email');
+    const dish = await Dish.findById(req.params.id)
+      .select('name description price imageUrl category availability tags preparationTime ingredients nutritionalInfo isActive createdAt')
+      .populate('createdBy', 'name email')
+      .lean();
 
     if (!dish) {
       return res.status(404).json({

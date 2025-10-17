@@ -75,9 +75,13 @@ dishSchema.pre('save', function(next) {
   next();
 });
 
-// Create index for better search performance
+// Create comprehensive indexes for better search performance
 dishSchema.index({ name: 'text', description: 'text', tags: 'text' });
-dishSchema.index({ category: 1, availability: 1 });
+dishSchema.index({ category: 1, availability: 1, isActive: 1 });
 dishSchema.index({ price: 1 });
+dishSchema.index({ tags: 1, isActive: 1 });
+dishSchema.index({ isActive: 1, createdAt: -1 });
+dishSchema.index({ category: 1, isActive: 1, availability: 1 });
+dishSchema.index({ createdBy: 1, isActive: 1 });
 
 module.exports = mongoose.model('Dish', dishSchema);

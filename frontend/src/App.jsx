@@ -10,12 +10,14 @@ import Footer from './components/layout/Footer';
 import AdminLayout from './components/layout/AdminLayout';
 import ScrollToTop from './components/ScrollToTop';
 
-// Lazy load pages for better performance
+// Lazy load pages for better performance with preloading
 const Home = lazy(() => import('./pages/Home'));
 const Menu = lazy(() => import('./pages/Menu'));
 const MenuCard = lazy(() => import('./pages/MenuCard'));
 const DishDetail = lazy(() => import('./pages/DishDetail'));
 const Cart = lazy(() => import('./pages/Cart'));
+
+// Heavy components - lazy load with preloading
 const Checkout = lazy(() => import('./pages/Checkout'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
@@ -24,12 +26,12 @@ const Orders = lazy(() => import('./pages/Orders'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 
-// Admin Pages
+// Admin Pages - lazy load all admin components
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminMenu = lazy(() => import('./pages/admin/Menu'));
 const AdminOrders = lazy(() => import('./pages/admin/Orders'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
-import AdminAnalytics from './pages/admin/Analytics';
+const AdminAnalytics = lazy(() => import('./pages/admin/Analytics'));
 
 // Protected Route Component
 import ProtectedRoute from './components/auth/ProtectedRoute';

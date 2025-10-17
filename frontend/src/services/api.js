@@ -3,9 +3,16 @@ import axios from 'axios';
 // Create axios instance with base configuration
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
 
-// Simple cache implementation
+// Enhanced cache implementation with different durations for different data types
 const cache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATIONS = {
+  dishes: 10 * 60 * 1000, // 10 minutes for dishes (they don't change often)
+  categories: 30 * 60 * 1000, // 30 minutes for categories
+  tags: 30 * 60 * 1000, // 30 minutes for tags
+  orders: 2 * 60 * 1000, // 2 minutes for orders (more dynamic)
+  users: 5 * 60 * 1000, // 5 minutes for users
+  default: 5 * 60 * 1000 // 5 minutes default
+};
 
 const api = axios.create({
   baseURL: baseURL,
@@ -55,9 +62,10 @@ const getCacheKey = (url, params = {}) => {
   return `${url}?${JSON.stringify(sortedParams)}`;
 };
 
-const getCachedData = (key) => {
+const getCachedData = (key, type = 'default') => {
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+  const duration = CACHE_DURATIONS[type] || CACHE_DURATIONS.default;
+  if (cached && Date.now() - cached.timestamp < duration) {
     return cached.data;
   }
   cache.delete(key);
@@ -114,7 +122,7 @@ export const dishesAPI = {
   // GET /api/v1/dishes
   getDishes: async (params = {}) => {
     const cacheKey = getCacheKey('/dishes', params);
-    const cachedData = getCachedData(cacheKey);
+    const cachedData = getCachedData(cacheKey, 'dishes');
     if (cachedData) {
       return Promise.resolve(cachedData);
     }
@@ -126,7 +134,7 @@ export const dishesAPI = {
   // GET /api/v1/dishes/:id
   getDish: async (id) => {
     const cacheKey = getCacheKey(`/dishes/${id}`);
-    const cachedData = getCachedData(cacheKey);
+    const cachedData = getCachedData(cacheKey, 'dishes');
     if (cachedData) {
       return Promise.resolve(cachedData);
     }
@@ -138,7 +146,7 @@ export const dishesAPI = {
   // GET /api/v1/dishes/categories
   getCategories: async () => {
     const cacheKey = getCacheKey('/dishes/categories');
-    const cachedData = getCachedData(cacheKey);
+    const cachedData = getCachedData(cacheKey, 'categories');
     if (cachedData) {
       return Promise.resolve(cachedData);
     }
@@ -150,7 +158,7 @@ export const dishesAPI = {
   // GET /api/v1/dishes/tags
   getTags: async () => {
     const cacheKey = getCacheKey('/dishes/tags');
-    const cachedData = getCachedData(cacheKey);
+    const cachedData = getCachedData(cacheKey, 'tags');
     if (cachedData) {
       return Promise.resolve(cachedData);
     }

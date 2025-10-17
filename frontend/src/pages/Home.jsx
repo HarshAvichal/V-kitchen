@@ -6,6 +6,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { dishesAPI, newsletterAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import OptimizedImage from '../components/OptimizedImage';
 
 const Home = () => {
   const [popularDishes, setPopularDishes] = useState([]);
@@ -193,7 +194,7 @@ const Home = () => {
                 {displayedDishes.map((dish) => (
                 <div key={dish._id || dish.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
                   <div className="relative">
-                    <img
+                    <OptimizedImage
                       src={dish.imageUrl}
                       alt={dish.name}
                       className="w-full h-48 object-cover"
@@ -233,7 +234,7 @@ const Home = () => {
                   {nextDishes.map((dish) => (
                     <div key={`next-${dish._id || dish.id}`} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
                       <div className="relative">
-                        <img
+                        <OptimizedImage
                           src={dish.imageUrl}
                           alt={dish.name}
                           className="w-full h-48 object-cover"

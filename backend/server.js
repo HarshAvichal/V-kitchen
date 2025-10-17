@@ -33,8 +33,19 @@ seedAdmin();
 // Security middleware
 app.use(helmet());
 
-// Enable gzip compression
-app.use(compression());
+// Enable gzip compression with better settings
+app.use(compression({
+  level: 6, // Compression level (1-9, 6 is good balance)
+  threshold: 1024, // Only compress responses larger than 1KB
+  filter: (req, res) => {
+    // Don't compress if the request includes a no-transform directive
+    if (req.headers['cache-control'] && req.headers['cache-control'].includes('no-transform')) {
+      return false;
+    }
+    // Use compression for all other responses
+    return compression.filter(req, res);
+  }
+}));
 
 // Rate limiting
 const limiter = rateLimit({

@@ -18,16 +18,50 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['@heroicons/react', 'lucide-react'],
-          utils: ['axios', 'date-fns']
+        manualChunks: (id) => {
+          // Core React libraries
+          if (id.includes('react') || id.includes('react-dom')) {
+            return 'react-vendor';
+          }
+          // Router
+          if (id.includes('react-router')) {
+            return 'router';
+          }
+          // UI libraries
+          if (id.includes('@heroicons') || id.includes('lucide-react')) {
+            return 'ui-icons';
+          }
+          // Utility libraries
+          if (id.includes('axios') || id.includes('date-fns')) {
+            return 'utils';
+          }
+          // Stripe payment
+          if (id.includes('@stripe') || id.includes('stripe')) {
+            return 'payment';
+          }
+          // Socket.io
+          if (id.includes('socket.io')) {
+            return 'socket';
+          }
+          // Large admin components
+          if (id.includes('admin/')) {
+            return 'admin';
+          }
+          // Large user components
+          if (id.includes('pages/') && (id.includes('Orders') || id.includes('Profile') || id.includes('Checkout'))) {
+            return 'user-pages';
+          }
+          // Default chunk for everything else
+          return 'main';
         }
       }
     },
     // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+    // Optimize asset handling
+    assetsInlineLimit: 4096
   },
   // Optimize dependencies
   optimizeDeps: {
