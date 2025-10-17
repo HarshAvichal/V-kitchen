@@ -40,7 +40,7 @@ const Menu = () => {
   const handleMenuUpdate = useCallback((data) => {
     
     // Refresh dishes when menu is updated
-    fetchDishes();
+    fetchDishes(true); // Force refresh
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
@@ -117,7 +117,7 @@ const Menu = () => {
     }
   }, [searchParams]);
 
-  const fetchDishes = useCallback(async () => {
+  const fetchDishes = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       const params = {
@@ -131,7 +131,7 @@ const Menu = () => {
         params.tags = filters.tags.join(',');
       }
 
-      const response = await dishesAPI.getDishes(params);
+      const response = await dishesAPI.getDishes(params, forceRefresh);
       setDishes(response.data.data);
       setPagination(prev => ({
         ...prev,

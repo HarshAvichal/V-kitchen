@@ -63,7 +63,7 @@ const AdminMenu = () => {
   const handleMenuUpdate = useCallback((data) => {
     
     // Refresh dishes when menu is updated
-    fetchDishes();
+    fetchDishes(true); // Force refresh
   }, []);
 
   // Use menu updates hook
@@ -112,7 +112,7 @@ const AdminMenu = () => {
     }
   }, [editingDish]);
 
-  const fetchDishes = useCallback(async () => {
+  const fetchDishes = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       const params = { ...filters };
@@ -122,7 +122,7 @@ const AdminMenu = () => {
         params.tags = filters.tags.join(',');
       }
 
-      const response = await dishesAPI.getDishes(params);
+      const response = await dishesAPI.getDishes(params, forceRefresh);
       setDishes(response.data.data);
     } catch (error) {
       console.error('Error fetching dishes:', error);
@@ -161,7 +161,10 @@ const AdminMenu = () => {
     try {
       await dishesAPI.deleteDish(dishToDelete._id);
       toast.success('Dish deleted successfully');
-      fetchDishes();
+      // Small delay to ensure backend processing
+      setTimeout(() => {
+        fetchDishes(true); // Force refresh
+      }, 100);
       setShowDeleteModal(false);
       setDishToDelete(null);
     } catch (error) {
@@ -182,7 +185,10 @@ const AdminMenu = () => {
         availability: !dish.availability
       });
       toast.success(`Dish ${dish.availability ? 'hidden' : 'shown'} successfully`);
-      fetchDishes();
+      // Small delay to ensure backend processing
+      setTimeout(() => {
+        fetchDishes(true); // Force refresh
+      }, 100);
     } catch (error) {
       console.error('Error updating dish:', error);
       toast.error('Failed to update dish availability');
@@ -306,7 +312,10 @@ const AdminMenu = () => {
       setShowAddForm(false);
       setEditingDish(null);
       setSelectedTags([]);
-      fetchDishes();
+      // Small delay to ensure backend processing
+      setTimeout(() => {
+        fetchDishes(true); // Force refresh
+      }, 100);
     } catch (error) {
       console.error('Error saving dish:', error);
       toast.error('Failed to save dish');

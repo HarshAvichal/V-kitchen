@@ -79,6 +79,40 @@ const setCachedData = (key, data) => {
   });
 };
 
+// Clear cache for dishes-related data
+const clearDishesCache = () => {
+  for (const [key] of cache) {
+    if (key.includes('/dishes') || key.includes('/categories') || key.includes('/tags')) {
+      cache.delete(key);
+    }
+  }
+};
+
+// Clear all cache
+const clearAllCache = () => {
+  cache.clear();
+};
+
+// Retry mechanism for failed requests
+const retryRequest = async (requestFn, maxRetries = 3, delay = 1000) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+    }
+  }
+};
+
+// Export cache management functions
+export const cacheUtils = {
+  clearDishesCache,
+  clearAllCache,
+  getCacheSize: () => cache.size,
+  retryRequest
+};
+
 // Auth API
 export const authAPI = {
   // POST /api/v1/auth/register
@@ -120,8 +154,16 @@ export const authAPI = {
 // Dishes API
 export const dishesAPI = {
   // GET /api/v1/dishes
-  getDishes: async (params = {}) => {
+  getDishes: async (params = {}, forceRefresh = false) => {
     const cacheKey = getCacheKey('/dishes', params);
+    
+    // If force refresh is requested, skip cache
+    if (forceRefresh) {
+      const response = await api.get('/dishes', { params });
+      setCachedData(cacheKey, response);
+      return response;
+    }
+    
     const cachedData = getCachedData(cacheKey, 'dishes');
     if (cachedData) {
       return Promise.resolve(cachedData);
@@ -168,13 +210,31 @@ export const dishesAPI = {
   },
   
   // POST /api/v1/dishes (Admin only)
-  createDish: (dishData) => api.post('/dishes', dishData),
+  createDish: async (dishData) => {
+    const response = await api.post('/dishes', dishData);
+    clearDishesCache(); // Clear cache after creating
+    // Also clear all cache to ensure fresh data everywhere
+    clearAllCache();
+    return response;
+  },
   
   // PUT /api/v1/dishes/:id (Admin only)
-  updateDish: (id, dishData) => api.put(`/dishes/${id}`, dishData),
+  updateDish: async (id, dishData) => {
+    const response = await api.put(`/dishes/${id}`, dishData);
+    clearDishesCache(); // Clear cache after updating
+    // Also clear all cache to ensure fresh data everywhere
+    clearAllCache();
+    return response;
+  },
   
   // DELETE /api/v1/dishes/:id (Admin only)
-  deleteDish: (id) => api.delete(`/dishes/${id}`),
+  deleteDish: async (id) => {
+    const response = await api.delete(`/dishes/${id}`);
+    clearDishesCache(); // Clear cache after deleting
+    // Also clear all cache to ensure fresh data everywhere
+    clearAllCache();
+    return response;
+  },
 };
 
 // Orders API

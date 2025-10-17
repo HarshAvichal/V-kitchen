@@ -26,10 +26,10 @@ const MenuCard = () => {
     fetchDishes();
   }, []);
 
-  const fetchDishes = async () => {
+  const fetchDishes = async (forceRefresh = false) => {
     try {
       setLoading(true);
-      const response = await dishesAPI.getDishes();
+      const response = await dishesAPI.getDishes({}, forceRefresh);
       setDishes(response.data.data);
       
       // Extract unique categories
