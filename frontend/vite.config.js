@@ -9,7 +9,8 @@ export default defineConfig({
     host: true
   },
   define: {
-    __APP_TITLE__: '"V-Kitchen"'
+    __APP_TITLE__: '"V-Kitchen"',
+    __BUILD_TIME__: `"${new Date().toISOString()}"`
   },
   build: {
     // Optimize build performance
@@ -18,9 +19,9 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        entryFileNames: `assets/[name]-[hash].js`,
-        chunkFileNames: `assets/[name]-[hash].js`,
-        assetFileNames: `assets/[name]-[hash].[ext]`,
+        entryFileNames: `assets/[name]-${Date.now()}-[hash].js`,
+        chunkFileNames: `assets/[name]-${Date.now()}-[hash].js`,
+        assetFileNames: `assets/[name]-${Date.now()}-[hash].[ext]`,
         manualChunks: (id) => {
           // Core React libraries
           if (id.includes('react') || id.includes('react-dom')) {
