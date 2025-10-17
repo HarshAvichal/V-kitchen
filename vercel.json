@@ -5,11 +5,11 @@
   "framework": "vite",
   "headers": [
     {
-      "source": "/assets/(.*\\.css)",
+      "source": "/assets/style-(.*)",
       "headers": [
         {
           "key": "Content-Type",
-          "value": "text/css"
+          "value": "text/css; charset=utf-8"
         }
       ]
     }
