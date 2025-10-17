@@ -4,7 +4,11 @@ const crypto = require('crypto');
 
 // Create reusable transporter object using SMTP transport
 const createTransporter = () => {
-  return nodemailer.createTransport({
+  console.log('📧 Creating email transporter...');
+  console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
+  console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+  
+  const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
@@ -19,6 +23,17 @@ const createTransporter = () => {
     maxMessages: 100,
     rateLimit: 10 // max 10 emails per second
   });
+  
+  // Verify transporter configuration
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email transporter verification failed:', error);
+    } else {
+      console.log('✅ Email transporter verified successfully');
+    }
+  });
+  
+  return transporter;
 };
 
 // Beautiful HTML email template for order cancellation notifications to admin
