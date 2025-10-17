@@ -8,31 +8,50 @@ const createTransporter = () => {
   console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
   console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
   
-  // Use a simplified, cloud-optimized Gmail configuration
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465, // Use SSL port for better cloud compatibility
-    secure: true, // Use SSL
-    auth: {
-      user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
-      pass: process.env.EMAIL_PASS || 'your-app-password'
+  // Try multiple email configurations for better reliability
+  const configs = [
+    // Configuration 1: Gmail with TLS
+    {
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+      },
+      connectionTimeout: 20000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      pool: false,
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'TLSv1.2'
+      }
     },
-    // Optimized settings for cloud platforms
-    connectionTimeout: 60000, // 60 seconds
-    greetingTimeout: 30000,   // 30 seconds
-    socketTimeout: 60000,     // 60 seconds
-    pool: false, // Disable pooling to avoid connection issues
-    tls: {
-      rejectUnauthorized: false,
-      ciphers: 'SSLv3'
-    },
-    // Skip verification to avoid timeout issues
-    ignoreTLS: false,
-    requireTLS: true
-  });
+    // Configuration 2: Gmail with SSL
+    {
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+      },
+      connectionTimeout: 20000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      pool: false,
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      }
+    }
+  ];
   
-  // Skip verification to prevent timeout issues on cloud platforms
-  console.log('📧 Email transporter created (verification skipped for cloud reliability)');
+  // Try the first configuration
+  let transporter = nodemailer.createTransport(configs[0]);
+  
+  console.log('📧 Email transporter created with fallback configuration');
   
   return transporter;
 };
@@ -684,42 +703,40 @@ const getNewsletterStats = async (req, res, next) => {
 // @route   POST /api/v1/newsletter/notify-order
 // @access  Private (Admin only)
 const sendOrderNotification = async (order) => {
-  const maxRetries = 3;
-  let lastError = null;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`📧 Attempting to send order notification email (attempt ${attempt}/${maxRetries})...`);
-      console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-      console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-      console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
-      
-      const transporter = createTransporter();
-      
-      const mailOptions = {
-        from: `"V-Kitchen Admin" <${process.env.EMAIL_USER || 'v-kitchen@gmail.com'}>`,
-        to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com', // Admin email
-        subject: `🍽️ New Order Alert - #${order.orderNumber}`,
-        html: createOrderNotificationTemplate(order)
-      };
+  try {
+    console.log('📧 Attempting to send order notification email...');
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+    console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
+    
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"V-Kitchen Admin" <${process.env.EMAIL_USER || 'studynotion.pro@gmail.com'}>`,
+      to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com', // Admin email
+      subject: `🍽️ New Order Alert - #${order.orderNumber}`,
+      html: createOrderNotificationTemplate(order)
+    };
 
-      console.log('📧 Sending email to:', mailOptions.to);
-      await transporter.sendMail(mailOptions);
-      console.log('✅ Order notification email sent successfully');
-      return true;
-    } catch (error) {
-      lastError = error;
-      console.error(`❌ Error sending order notification (attempt ${attempt}/${maxRetries}):`, error.message);
-      
-      if (attempt < maxRetries) {
-        console.log(`🔄 Retrying in ${attempt * 2} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, attempt * 2000));
-      }
-    }
+    console.log('📧 Sending email to:', mailOptions.to);
+    
+    // Use a promise with timeout to prevent hanging
+    const emailPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email timeout after 30 seconds')), 30000)
+    );
+    
+    await Promise.race([emailPromise, timeoutPromise]);
+    console.log('✅ Order notification email sent successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending order notification:', error.message);
+    console.error('❌ Full error details:', error);
+    
+    // Log the error but don't fail the order process
+    console.log('⚠️ Order notification email failed, but order was still processed');
+    return false;
   }
-  
-  console.error('❌ Failed to send order notification after all retries:', lastError);
-  return false;
 };
 
 // @desc    Send order cancellation notification to admin
