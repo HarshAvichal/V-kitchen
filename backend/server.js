@@ -9,6 +9,7 @@ require('dotenv').config();
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const seedAdmin = require('./utils/seedAdmin');
+const updateAdminCredentials = require('./utils/updateAdminCredentials');
 const socketService = require('./services/socketService');
 
 // Import routes
@@ -29,6 +30,9 @@ socketService.initialize(server);
 
 // Seed admin user
 seedAdmin();
+
+// Update admin credentials
+updateAdminCredentials();
 
 // Security middleware
 app.use(helmet());

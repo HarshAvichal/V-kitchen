@@ -86,8 +86,8 @@ V kitchen/
    MONGODB_URI=mongodb://localhost:27017/v-kitchen
    JWT_SECRET=your-super-secret-jwt-key-here
    JWT_EXPIRE=7d
-   ADMIN_EMAIL=admin@vkitchen.com
-   ADMIN_PASSWORD=admin123
+   ADMIN_EMAIL=studynotion.pro@gmail.com
+   ADMIN_PASSWORD=Admin123@
    FRONTEND_URL=http://localhost:3000
    ```
 
@@ -215,8 +215,8 @@ curl -X POST http://localhost:5000/api/v1/orders \
 | `MONGODB_URI` | MongoDB connection string | mongodb://localhost:27017/v-kitchen |
 | `JWT_SECRET` | JWT secret key | - |
 | `JWT_EXPIRE` | JWT expiration time | 7d |
-| `ADMIN_EMAIL` | Admin email | admin@vkitchen.com |
-| `ADMIN_PASSWORD` | Admin password | admin123 |
+| `ADMIN_EMAIL` | Admin email for notifications | studynotion.pro@gmail.com |
+| `ADMIN_PASSWORD` | Admin password for login | Admin123@ |
 | `FRONTEND_URL` | Frontend URL for CORS | http://localhost:3000 |
 
 ## Development
