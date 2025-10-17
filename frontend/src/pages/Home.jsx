@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import OptimizedImage from '../components/OptimizedImage';
 
 const Home = () => {
+  console.log('Home component rendering...');
   const [popularDishes, setPopularDishes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [displayedDishes, setDisplayedDishes] = useState([]);

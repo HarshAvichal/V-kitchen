@@ -42,6 +42,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 function App() {
   // Debug: Log React version
   console.log('React version:', React.version);
+  console.log('App component rendering...');
   
   return (
     <AuthProvider>
