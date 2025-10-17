@@ -38,7 +38,7 @@ const Menu = () => {
 
   // Handle real-time menu updates
   const handleMenuUpdate = useCallback((data) => {
-    
+    console.log('Customer: Real-time menu update received:', data);
     // Refresh dishes when menu is updated
     fetchDishes(true); // Force refresh
     
@@ -52,7 +52,7 @@ const Menu = () => {
         });
       }
     }
-  }, []);
+  }, [fetchDishes]);
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);

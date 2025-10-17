@@ -61,10 +61,10 @@ const AdminMenu = () => {
 
   // Handle real-time menu updates for admin
   const handleMenuUpdate = useCallback((data) => {
-    
+    console.log('Admin: Real-time menu update received:', data);
     // Refresh dishes when menu is updated
     fetchDishes(true); // Force refresh
-  }, []);
+  }, [fetchDishes]);
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -114,6 +114,7 @@ const AdminMenu = () => {
 
   const fetchDishes = useCallback(async (forceRefresh = false) => {
     try {
+      console.log('Admin: fetchDishes called with forceRefresh:', forceRefresh);
       setLoading(true);
       const params = { ...filters };
       
@@ -123,6 +124,7 @@ const AdminMenu = () => {
       }
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
+      console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
       setDishes(response.data.data);
     } catch (error) {
       console.error('Error fetching dishes:', error);

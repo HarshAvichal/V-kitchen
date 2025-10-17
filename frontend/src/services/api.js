@@ -212,9 +212,11 @@ export const dishesAPI = {
   // POST /api/v1/dishes (Admin only)
   createDish: async (dishData) => {
     const response = await api.post('/dishes', dishData);
+    console.log('Dish created, clearing cache...');
     clearDishesCache(); // Clear cache after creating
     // Also clear all cache to ensure fresh data everywhere
     clearAllCache();
+    console.log('Cache cleared, cache size:', cache.size);
     return response;
   },
   
