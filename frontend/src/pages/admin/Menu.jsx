@@ -38,7 +38,7 @@ const AdminMenu = () => {
     fetchDishes(false, filters);
     fetchCategories();
     fetchTags();
-  }, [filters, fetchDishes]);
+  }, [filters]);
 
   // Handle escape key to close modals
   useEffect(() => {
@@ -62,9 +62,12 @@ const AdminMenu = () => {
   // Handle real-time menu updates for admin
   const handleMenuUpdate = useCallback((data) => {
     console.log('Admin: Real-time menu update received:', data);
-    // Refresh dishes when menu is updated
-    fetchDishes(true, filters); // Force refresh with current filters
-  }, [fetchDishes, filters]);
+    // Refresh dishes when menu is updated - get current filters from state
+    setFilters(currentFilters => {
+      fetchDishes(true, currentFilters);
+      return currentFilters;
+    });
+  }, [fetchDishes]);
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -165,7 +168,10 @@ const AdminMenu = () => {
       toast.success('Dish deleted successfully');
       // Small delay to ensure backend processing
       setTimeout(() => {
-        fetchDishes(true, filters); // Force refresh
+        setFilters(currentFilters => {
+          fetchDishes(true, currentFilters);
+          return currentFilters;
+        });
       }, 100);
       setShowDeleteModal(false);
       setDishToDelete(null);
@@ -189,7 +195,10 @@ const AdminMenu = () => {
       toast.success(`Dish ${dish.availability ? 'hidden' : 'shown'} successfully`);
       // Small delay to ensure backend processing
       setTimeout(() => {
-        fetchDishes(true, filters); // Force refresh
+        setFilters(currentFilters => {
+          fetchDishes(true, currentFilters);
+          return currentFilters;
+        });
       }, 100);
     } catch (error) {
       console.error('Error updating dish:', error);
@@ -316,7 +325,10 @@ const AdminMenu = () => {
       setSelectedTags([]);
       // Small delay to ensure backend processing
       setTimeout(() => {
-        fetchDishes(true, filters); // Force refresh
+        setFilters(currentFilters => {
+          fetchDishes(true, currentFilters);
+          return currentFilters;
+        });
       }, 100);
     } catch (error) {
       console.error('Error saving dish:', error);

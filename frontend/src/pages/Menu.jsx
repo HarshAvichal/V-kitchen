@@ -39,8 +39,14 @@ const Menu = () => {
   // Handle real-time menu updates
   const handleMenuUpdate = useCallback((data) => {
     console.log('Customer: Real-time menu update received:', data);
-    // Refresh dishes when menu is updated
-    fetchDishes(true, filters, pagination); // Force refresh
+    // Refresh dishes when menu is updated - get current state
+    setFilters(currentFilters => {
+      setPagination(currentPagination => {
+        fetchDishes(true, currentFilters, currentPagination);
+        return currentPagination;
+      });
+      return currentFilters;
+    });
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
@@ -52,7 +58,7 @@ const Menu = () => {
         });
       }
     }
-  }, [fetchDishes, filters, pagination]);
+  }, [fetchDishes]);
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -90,7 +96,7 @@ const Menu = () => {
     fetchDishes(false, filters, pagination);
     fetchCategories();
     fetchTags();
-  }, [filters, pagination.page, fetchDishes]);
+  }, [filters, pagination.page]);
 
   // Handle URL parameter changes (e.g., browser back/forward)
   useEffect(() => {
