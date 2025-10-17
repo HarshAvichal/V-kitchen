@@ -8,28 +8,62 @@ const createTransporter = () => {
   console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
   console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
   
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
-      pass: process.env.EMAIL_PASS || 'your-app-password' // Use App Password for Gmail
+  // Try multiple email configurations for better reliability
+  const configs = [
+    // Configuration 1: Gmail with different settings
+    {
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+      },
+      connectionTimeout: 30000, // 30 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 30000,     // 30 seconds
+      pool: false, // Disable pooling for better reliability
+      secure: true,
+      tls: {
+        rejectUnauthorized: false
+      }
     },
-    // Add timeout configuration to prevent delays
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 5000,    // 5 seconds
-    socketTimeout: 10000,     // 10 seconds
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
-    rateLimit: 10 // max 10 emails per second
-  });
+    // Configuration 2: Alternative Gmail settings
+    {
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
+      },
+      connectionTimeout: 30000,
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
+      tls: {
+        rejectUnauthorized: false
+      }
+    }
+  ];
   
-  // Verify transporter configuration
+  // Try the first configuration
+  let transporter = nodemailer.createTransport(configs[0]);
+  
+  // Verify transporter configuration with retry
   transporter.verify((error, success) => {
     if (error) {
-      console.error('❌ Email transporter verification failed:', error);
+      console.error('❌ Primary email transporter verification failed:', error);
+      console.log('🔄 Trying alternative configuration...');
+      
+      // Try alternative configuration
+      transporter = nodemailer.createTransport(configs[1]);
+      transporter.verify((error2, success2) => {
+        if (error2) {
+          console.error('❌ Alternative email transporter verification failed:', error2);
+        } else {
+          console.log('✅ Alternative email transporter verified successfully');
+        }
+      });
     } else {
-      console.log('✅ Email transporter verified successfully');
+      console.log('✅ Primary email transporter verified successfully');
     }
   });
   
@@ -683,30 +717,42 @@ const getNewsletterStats = async (req, res, next) => {
 // @route   POST /api/v1/newsletter/notify-order
 // @access  Private (Admin only)
 const sendOrderNotification = async (order) => {
-  try {
-    console.log('📧 Attempting to send order notification email...');
-    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-    console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
-    
-    const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: `"V-Kitchen Admin" <${process.env.EMAIL_USER || 'v-kitchen@gmail.com'}>`,
-      to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com', // Admin email
-      subject: `🍽️ New Order Alert - #${order.orderNumber}`,
-      html: createOrderNotificationTemplate(order)
-    };
+  const maxRetries = 3;
+  let lastError = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📧 Attempting to send order notification email (attempt ${attempt}/${maxRetries})...`);
+      console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+      console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+      console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
+      
+      const transporter = createTransporter();
+      
+      const mailOptions = {
+        from: `"V-Kitchen Admin" <${process.env.EMAIL_USER || 'v-kitchen@gmail.com'}>`,
+        to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com', // Admin email
+        subject: `🍽️ New Order Alert - #${order.orderNumber}`,
+        html: createOrderNotificationTemplate(order)
+      };
 
-    console.log('📧 Sending email to:', mailOptions.to);
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Order notification email sent successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Error sending order notification:', error.message);
-    console.error('❌ Full error details:', error);
-    return false;
+      console.log('📧 Sending email to:', mailOptions.to);
+      await transporter.sendMail(mailOptions);
+      console.log('✅ Order notification email sent successfully');
+      return true;
+    } catch (error) {
+      lastError = error;
+      console.error(`❌ Error sending order notification (attempt ${attempt}/${maxRetries}):`, error.message);
+      
+      if (attempt < maxRetries) {
+        console.log(`🔄 Retrying in ${attempt * 2} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+      }
+    }
   }
+  
+  console.error('❌ Failed to send order notification after all retries:', lastError);
+  return false;
 };
 
 // @desc    Send order cancellation notification to admin
@@ -741,33 +787,45 @@ const sendOrderCancellationNotification = async (order) => {
 // @route   POST /api/v1/newsletter/notify-status-update
 // @access  Private
 const sendOrderStatusUpdateNotification = async (order, status) => {
-  try {
-    console.log('📧 Attempting to send status update email...');
-    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-    console.log('📧 Customer email:', order.user?.email);
-    console.log('📧 Status:', status);
-    
-    const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: `"V-Kitchen" <${process.env.EMAIL_USER || 'v-kitchen@gmail.com'}>`,
-      to: order.user.email,
-      subject: status === 'ready' 
-        ? `🍽️ Your Order #${order.orderNumber} is Ready!` 
-        : `🎉 Your Order #${order.orderNumber} has been Delivered!`,
-      html: createOrderStatusUpdateTemplate(order, status)
-    };
+  const maxRetries = 3;
+  let lastError = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📧 Attempting to send status update email (attempt ${attempt}/${maxRetries})...`);
+      console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+      console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+      console.log('📧 Customer email:', order.user?.email);
+      console.log('📧 Status:', status);
+      
+      const transporter = createTransporter();
+      
+      const mailOptions = {
+        from: `"V-Kitchen" <${process.env.EMAIL_USER || 'v-kitchen@gmail.com'}>`,
+        to: order.user.email,
+        subject: status === 'ready' 
+          ? `🍽️ Your Order #${order.orderNumber} is Ready!` 
+          : `🎉 Your Order #${order.orderNumber} has been Delivered!`,
+        html: createOrderStatusUpdateTemplate(order, status)
+      };
 
-    console.log('📧 Sending status update email to:', mailOptions.to);
-    await transporter.sendMail(mailOptions);
-    console.log('✅ Status update email sent successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Error sending order status update notification:', error.message);
-    console.error('❌ Full error details:', error);
-    return false;
+      console.log('📧 Sending status update email to:', mailOptions.to);
+      await transporter.sendMail(mailOptions);
+      console.log('✅ Status update email sent successfully');
+      return true;
+    } catch (error) {
+      lastError = error;
+      console.error(`❌ Error sending status update email (attempt ${attempt}/${maxRetries}):`, error.message);
+      
+      if (attempt < maxRetries) {
+        console.log(`🔄 Retrying in ${attempt * 2} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+      }
+    }
   }
+  
+  console.error('❌ Failed to send status update email after all retries:', lastError);
+  return false;
 };
 
 // @desc    Test email configuration
@@ -817,6 +875,44 @@ const testEmailConfiguration = async (req, res) => {
   }
 };
 
+// @desc    Send test email
+// @route   POST /api/v1/newsletter/send-test-email
+// @access  Public (for testing)
+const sendTestEmail = async (req, res) => {
+  try {
+    console.log('🧪 Sending test email...');
+    
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"V-Kitchen Test" <${process.env.EMAIL_USER || 'v-kitchen@gmail.com'}>`,
+      to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com',
+      subject: '🧪 Test Email from V-Kitchen',
+      html: `
+        <h2>Test Email</h2>
+        <p>This is a test email from V-Kitchen backend.</p>
+        <p>Time: ${new Date().toISOString()}</p>
+        <p>If you receive this, the email service is working correctly!</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Test email sent successfully');
+    
+    res.json({
+      success: true,
+      message: 'Test email sent successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error sending test email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send test email',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   subscribeToNewsletter,
   unsubscribeFromNewsletter,
@@ -824,5 +920,6 @@ module.exports = {
   sendOrderNotification,
   sendOrderCancellationNotification,
   sendOrderStatusUpdateNotification,
-  testEmailConfiguration
+  testEmailConfiguration,
+  sendTestEmail
 };

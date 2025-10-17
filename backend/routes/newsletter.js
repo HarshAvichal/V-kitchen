@@ -4,7 +4,8 @@ const {
   subscribeToNewsletter,
   unsubscribeFromNewsletter,
   getNewsletterStats,
-  testEmailConfiguration
+  testEmailConfiguration,
+  sendTestEmail
 } = require('../controllers/newsletterController');
 
 const router = express.Router();
@@ -12,6 +13,7 @@ const router = express.Router();
 // Public routes
 router.post('/subscribe', subscribeToNewsletter);
 router.post('/unsubscribe', unsubscribeFromNewsletter);
+router.post('/send-test-email', sendTestEmail); // Public for testing
 
 // Admin routes
 router.get('/stats', protect, authorize('admin'), getNewsletterStats);

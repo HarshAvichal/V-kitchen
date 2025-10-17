@@ -6,6 +6,13 @@ const compression = require('compression');
 const http = require('http');
 require('dotenv').config();
 
+// Debug environment variables
+console.log('🔧 Environment Variables Check:');
+console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'NOT SET');
+console.log('🌐 NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
+
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const seedAdmin = require('./utils/seedAdmin');
