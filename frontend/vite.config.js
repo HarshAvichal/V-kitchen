@@ -12,20 +12,21 @@ export default defineConfig({
     __APP_TITLE__: '"V-Kitchen"',
     __BUILD_TIME__: `"${new Date().toISOString()}"`
   },
-  build: {
-    target: 'esnext',
-    minify: 'esbuild',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        entryFileNames: `assets/[name]-[hash].js`,
-        chunkFileNames: `assets/[name]-[hash].js`,
-        assetFileNames: `assets/[name]-[hash].[ext]`
-      }
-    },
-    chunkSizeWarningLimit: 1000,
-    cssCodeSplit: false
-  },
+        build: {
+          target: 'esnext',
+          minify: 'esbuild',
+          sourcemap: false,
+          rollupOptions: {
+            output: {
+              entryFileNames: `assets/[name]-[hash].js`,
+              chunkFileNames: `assets/[name]-[hash].js`,
+              assetFileNames: `assets/[name]-[hash].[ext]`
+            }
+          },
+          chunkSizeWarningLimit: 1000,
+          cssCodeSplit: false,
+          assetsInlineLimit: 0
+        },
   // Optimize dependencies
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'axios', 'scheduler']
