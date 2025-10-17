@@ -669,6 +669,11 @@ const getNewsletterStats = async (req, res, next) => {
 // @access  Private (Admin only)
 const sendOrderNotification = async (order) => {
   try {
+    console.log('📧 Attempting to send order notification email...');
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+    console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
+    
     const transporter = createTransporter();
     
     const mailOptions = {
@@ -678,10 +683,13 @@ const sendOrderNotification = async (order) => {
       html: createOrderNotificationTemplate(order)
     };
 
+    console.log('📧 Sending email to:', mailOptions.to);
     await transporter.sendMail(mailOptions);
+    console.log('✅ Order notification email sent successfully');
     return true;
   } catch (error) {
     console.error('❌ Error sending order notification:', error.message);
+    console.error('❌ Full error details:', error);
     return false;
   }
 };
@@ -719,6 +727,12 @@ const sendOrderCancellationNotification = async (order) => {
 // @access  Private
 const sendOrderStatusUpdateNotification = async (order, status) => {
   try {
+    console.log('📧 Attempting to send status update email...');
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+    console.log('📧 Customer email:', order.user?.email);
+    console.log('📧 Status:', status);
+    
     const transporter = createTransporter();
     
     const mailOptions = {
@@ -730,10 +744,13 @@ const sendOrderStatusUpdateNotification = async (order, status) => {
       html: createOrderStatusUpdateTemplate(order, status)
     };
 
+    console.log('📧 Sending status update email to:', mailOptions.to);
     await transporter.sendMail(mailOptions);
+    console.log('✅ Status update email sent successfully');
     return true;
   } catch (error) {
     console.error('❌ Error sending order status update notification:', error.message);
+    console.error('❌ Full error details:', error);
     return false;
   }
 };
