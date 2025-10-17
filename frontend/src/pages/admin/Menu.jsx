@@ -35,10 +35,10 @@ const AdminMenu = () => {
   const [selectedTags, setSelectedTags] = useState([]);
 
   useEffect(() => {
-    fetchDishes();
+    fetchDishes(false, filters);
     fetchCategories();
     fetchTags();
-  }, [filters]);
+  }, [filters, fetchDishes]);
 
   // Handle escape key to close modals
   useEffect(() => {
@@ -63,8 +63,8 @@ const AdminMenu = () => {
   const handleMenuUpdate = useCallback((data) => {
     console.log('Admin: Real-time menu update received:', data);
     // Refresh dishes when menu is updated
-    fetchDishes(true); // Force refresh
-  }, [fetchDishes]);
+    fetchDishes(true, filters); // Force refresh with current filters
+  }, [fetchDishes, filters]);
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -112,15 +112,15 @@ const AdminMenu = () => {
     }
   }, [editingDish]);
 
-  const fetchDishes = useCallback(async (forceRefresh = false) => {
+  const fetchDishes = useCallback(async (forceRefresh = false, currentFilters = filters) => {
     try {
       console.log('Admin: fetchDishes called with forceRefresh:', forceRefresh);
       setLoading(true);
-      const params = { ...filters };
+      const params = { ...currentFilters };
       
       // Convert tags array to comma-separated string
-      if (filters.tags.length > 0) {
-        params.tags = filters.tags.join(',');
+      if (currentFilters.tags.length > 0) {
+        params.tags = currentFilters.tags.join(',');
       }
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
@@ -132,7 +132,7 @@ const AdminMenu = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -165,7 +165,7 @@ const AdminMenu = () => {
       toast.success('Dish deleted successfully');
       // Small delay to ensure backend processing
       setTimeout(() => {
-        fetchDishes(true); // Force refresh
+        fetchDishes(true, filters); // Force refresh
       }, 100);
       setShowDeleteModal(false);
       setDishToDelete(null);
@@ -189,7 +189,7 @@ const AdminMenu = () => {
       toast.success(`Dish ${dish.availability ? 'hidden' : 'shown'} successfully`);
       // Small delay to ensure backend processing
       setTimeout(() => {
-        fetchDishes(true); // Force refresh
+        fetchDishes(true, filters); // Force refresh
       }, 100);
     } catch (error) {
       console.error('Error updating dish:', error);
@@ -316,7 +316,7 @@ const AdminMenu = () => {
       setSelectedTags([]);
       // Small delay to ensure backend processing
       setTimeout(() => {
-        fetchDishes(true); // Force refresh
+        fetchDishes(true, filters); // Force refresh
       }, 100);
     } catch (error) {
       console.error('Error saving dish:', error);

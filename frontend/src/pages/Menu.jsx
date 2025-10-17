@@ -40,7 +40,7 @@ const Menu = () => {
   const handleMenuUpdate = useCallback((data) => {
     console.log('Customer: Real-time menu update received:', data);
     // Refresh dishes when menu is updated
-    fetchDishes(true); // Force refresh
+    fetchDishes(true, filters, pagination); // Force refresh
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
@@ -52,7 +52,7 @@ const Menu = () => {
         });
       }
     }
-  }, [fetchDishes]);
+  }, [fetchDishes, filters, pagination]);
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -87,10 +87,10 @@ const Menu = () => {
   };
 
   useEffect(() => {
-    fetchDishes();
+    fetchDishes(false, filters, pagination);
     fetchCategories();
     fetchTags();
-  }, [filters, pagination.page]);
+  }, [filters, pagination.page, fetchDishes]);
 
   // Handle URL parameter changes (e.g., browser back/forward)
   useEffect(() => {
@@ -117,18 +117,18 @@ const Menu = () => {
     }
   }, [searchParams]);
 
-  const fetchDishes = useCallback(async (forceRefresh = false) => {
+  const fetchDishes = useCallback(async (forceRefresh = false, currentFilters = filters, currentPagination = pagination) => {
     try {
       setLoading(true);
       const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters
+        page: currentPagination.page,
+        limit: currentPagination.limit,
+        ...currentFilters
       };
       
       // Convert tags array to comma-separated string
-      if (filters.tags.length > 0) {
-        params.tags = filters.tags.join(',');
+      if (currentFilters.tags.length > 0) {
+        params.tags = currentFilters.tags.join(',');
       }
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
@@ -143,7 +143,7 @@ const Menu = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, filters]);
+  }, []);
 
   const fetchCategories = async () => {
     try {
