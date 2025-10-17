@@ -34,10 +34,59 @@ const AdminMenu = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState([]);
 
+  // Fetch dishes function - completely independent
+  const fetchDishes = async (forceRefresh = false, currentFilters = filters) => {
+    try {
+      console.log('Admin: fetchDishes called with forceRefresh:', forceRefresh);
+      setLoading(true);
+      const params = { ...currentFilters };
+      
+      // Convert tags array to comma-separated string
+      if (currentFilters.tags.length > 0) {
+        params.tags = currentFilters.tags.join(',');
+      }
+
+      const response = await dishesAPI.getDishes(params, forceRefresh);
+      console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
+      setDishes(response.data.data);
+    } catch (error) {
+      console.error('Error fetching dishes:', error);
+      toast.error('Failed to load dishes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch categories function
+  const fetchCategories = async () => {
+    try {
+      const response = await dishesAPI.getCategories();
+      setCategories(response.data.data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  // Fetch tags function
+  const fetchTags = async () => {
+    try {
+      const response = await dishesAPI.getTags();
+      setTags(response.data.data);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  };
+
+  // Load initial data
   useEffect(() => {
     fetchDishes(false, filters);
     fetchCategories();
     fetchTags();
+  }, []);
+
+  // Handle filter changes
+  useEffect(() => {
+    fetchDishes(false, filters);
   }, [filters]);
 
   // Handle escape key to close modals
@@ -59,15 +108,12 @@ const AdminMenu = () => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [showDeleteModal, showAddForm, editingDish]);
 
-  // Handle real-time menu updates for admin
-  const handleMenuUpdate = useCallback((data) => {
+  // Handle real-time menu updates
+  const handleMenuUpdate = (data) => {
     console.log('Admin: Real-time menu update received:', data);
-    // Refresh dishes when menu is updated - get current filters from state
-    setFilters(currentFilters => {
-      fetchDishes(true, currentFilters);
-      return currentFilters;
-    });
-  }, [fetchDishes]);
+    // Refresh dishes when menu is updated
+    fetchDishes(true, filters);
+  };
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -115,46 +161,6 @@ const AdminMenu = () => {
     }
   }, [editingDish]);
 
-  const fetchDishes = useCallback(async (forceRefresh = false, currentFilters = filters) => {
-    try {
-      console.log('Admin: fetchDishes called with forceRefresh:', forceRefresh);
-      setLoading(true);
-      const params = { ...currentFilters };
-      
-      // Convert tags array to comma-separated string
-      if (currentFilters.tags.length > 0) {
-        params.tags = currentFilters.tags.join(',');
-      }
-
-      const response = await dishesAPI.getDishes(params, forceRefresh);
-      console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
-      setDishes(response.data.data);
-    } catch (error) {
-      console.error('Error fetching dishes:', error);
-      toast.error('Failed to load dishes');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await dishesAPI.getCategories();
-      setCategories(response.data.data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchTags = async () => {
-    try {
-      const response = await dishesAPI.getTags();
-      setTags(response.data.data);
-    } catch (error) {
-      console.error('Error fetching tags:', error);
-    }
-  };
-
   const handleDeleteClick = (dish) => {
     setDishToDelete(dish);
     setShowDeleteModal(true);
@@ -166,12 +172,9 @@ const AdminMenu = () => {
     try {
       await dishesAPI.deleteDish(dishToDelete._id);
       toast.success('Dish deleted successfully');
-      // Small delay to ensure backend processing
+      // Refresh dishes after deletion
       setTimeout(() => {
-        setFilters(currentFilters => {
-          fetchDishes(true, currentFilters);
-          return currentFilters;
-        });
+        fetchDishes(true, filters);
       }, 100);
       setShowDeleteModal(false);
       setDishToDelete(null);
@@ -188,17 +191,14 @@ const AdminMenu = () => {
 
   const handleToggleAvailability = async (dish) => {
     try {
-        await dishesAPI.updateDish(dish._id, {
+      await dishesAPI.updateDish(dish._id, {
         ...dish,
         availability: !dish.availability
       });
       toast.success(`Dish ${dish.availability ? 'hidden' : 'shown'} successfully`);
-      // Small delay to ensure backend processing
+      // Refresh dishes after update
       setTimeout(() => {
-        setFilters(currentFilters => {
-          fetchDishes(true, currentFilters);
-          return currentFilters;
-        });
+        fetchDishes(true, filters);
       }, 100);
     } catch (error) {
       console.error('Error updating dish:', error);
@@ -234,58 +234,6 @@ const AdminMenu = () => {
     );
   };
 
-  const clearFilters = () => {
-    const newFilters = {
-      search: '',
-      category: '',
-      tags: []
-    };
-    setFilters(newFilters);
-    updateURLParams(newFilters);
-  };
-
-  // Function to get automatic image URL based on dish name
-  const getAutomaticImageUrl = (dishName) => {
-    const name = dishName.toLowerCase();
-    
-    // Define image mappings for common dishes with correct URLs
-    const imageMappings = {
-      'chicken biryani': 'https://images.unsplash.com/photo-1593483316242-efeea8084cda?w=400&h=300&fit=crop',
-      'butter chicken': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&h=300&fit=crop',
-      'masala dosa': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop',
-      'paneer tikka': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
-      'mango lassi': 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=400&h=300&fit=crop',
-      'dal makhani': 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
-      'naan': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
-      'samosa': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop',
-      'tandoori chicken': 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop',
-      'rajma': 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
-      'biryani': 'https://images.unsplash.com/photo-1593483316242-efeea8084cda?w=400&h=300&fit=crop',
-      'dosa': 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&h=300&fit=crop',
-      'tikka': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
-      'lassi': 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=400&h=300&fit=crop',
-      'dal': 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
-      'bread': 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
-      'chicken': 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop',
-      'curry': 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop'
-    };
-
-    // Check for exact matches first
-    if (imageMappings[name]) {
-      return imageMappings[name];
-    }
-
-    // Check for partial matches
-    for (const [key, url] of Object.entries(imageMappings)) {
-      if (name.includes(key) || key.includes(name)) {
-        return url;
-      }
-    }
-
-    // Default fallback image - using a generic food placeholder
-    return 'https://via.placeholder.com/400x300/FF6B35/FFFFFF?text=Food+Image';
-  };
-
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     
@@ -297,9 +245,9 @@ const AdminMenu = () => {
       category: formData.get('category'),
       preparationTime: parseInt(formData.get('preparationTime')),
       imageUrl: formData.get('imageUrl'),
-      tags: selectedTags.length > 0 ? selectedTags : ['popular'], // Use selected tags or default
+      tags: selectedTags.length > 0 ? selectedTags : ['popular'],
       availability: true,
-      ingredients: ['Rice', 'Spices', 'Vegetables'], // Default ingredients
+      ingredients: ['Rice', 'Spices', 'Vegetables'],
       nutritionalInfo: {
         calories: 300,
         protein: 15,
@@ -310,11 +258,9 @@ const AdminMenu = () => {
 
     try {
       if (editingDish) {
-        // Update existing dish
         await dishesAPI.updateDish(editingDish._id, dishData);
         toast.success('Dish updated successfully');
       } else {
-        // Create new dish
         await dishesAPI.createDish(dishData);
         toast.success('Dish added successfully');
       }
@@ -323,12 +269,10 @@ const AdminMenu = () => {
       setShowAddForm(false);
       setEditingDish(null);
       setSelectedTags([]);
-      // Small delay to ensure backend processing
+      
+      // Refresh dishes after create/update
       setTimeout(() => {
-        setFilters(currentFilters => {
-          fetchDishes(true, currentFilters);
-          return currentFilters;
-        });
+        fetchDishes(true, filters);
       }, 100);
     } catch (error) {
       console.error('Error saving dish:', error);
@@ -385,18 +329,7 @@ const AdminMenu = () => {
       {/* Filters */}
       {showFilters && (
         <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-            <button
-              onClick={clearFilters}
-              className="text-sm text-orange-600 hover:text-orange-700 flex items-center space-x-1"
-            >
-              <XMarkIcon className="h-4 w-4" />
-              <span>Clear All</span>
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Category Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -438,9 +371,9 @@ const AdminMenu = () => {
       )}
 
       {/* Dishes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {dishes.map((dish) => (
-          <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
+          <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div className="relative">
               <img
                 src={dish.imageUrl}
@@ -451,9 +384,9 @@ const AdminMenu = () => {
                 <button
                   onClick={() => handleToggleAvailability(dish)}
                   className={`p-2 rounded-full ${
-                    dish.availability 
-                      ? 'bg-green-100 text-green-600' 
-                      : 'bg-red-100 text-red-600'
+                    dish.availability
+                      ? 'bg-green-500 text-white hover:bg-green-600'
+                      : 'bg-red-500 text-white hover:bg-red-600'
                   }`}
                   title={dish.availability ? 'Hide dish' : 'Show dish'}
                 >
@@ -466,41 +399,36 @@ const AdminMenu = () => {
               </div>
             </div>
             
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-gray-900">{dish.name}</h3>
-                <span className="text-2xl font-bold text-orange-600">${dish.price}</span>
+            <div className="p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{dish.name}</h3>
+              <p className="text-gray-600 text-sm mb-2 line-clamp-2">{dish.description}</p>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xl font-bold text-orange-500">${dish.price}</span>
+                <span className="text-sm text-gray-500">{dish.preparationTime} min</span>
               </div>
               
-              <p className="text-gray-600 text-sm mb-3 flex-1">{dish.description}</p>
-              
-              <div className="flex flex-wrap gap-1 mb-2">
-                {dish.tags.map((tag) => (
+              <div className="flex flex-wrap gap-1 mb-3">
+                {dish.tags?.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                    className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full"
                   >
                     {tag}
                   </span>
                 ))}
               </div>
               
-              <div className="flex justify-between items-center text-sm text-gray-500 mb-3">
-                <span>Category: {dish.category}</span>
-                <span>{dish.preparationTime} min</span>
-              </div>
-              
-              <div className="flex space-x-2 mt-auto">
+              <div className="flex space-x-2">
                 <button
                   onClick={() => setEditingDish(dish)}
-                  className="flex-1 bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 transition-colors flex items-center justify-center space-x-1"
+                  className="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center space-x-1"
                 >
                   <PencilIcon className="h-4 w-4" />
                   <span>Edit</span>
                 </button>
                 <button
                   onClick={() => handleDeleteClick(dish)}
-                  className="flex-1 bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors flex items-center justify-center space-x-1"
+                  className="flex-1 bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center space-x-1"
                 >
                   <TrashIcon className="h-4 w-4" />
                   <span>Delete</span>
@@ -511,137 +439,105 @@ const AdminMenu = () => {
         ))}
       </div>
 
-      {dishes.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-gray-400 mb-4">
-            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No dishes found</h3>
-          <p className="text-gray-500 mb-4">Get started by adding your first dish to the menu.</p>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Add Your First Dish
-          </button>
-        </div>
-      )}
-
-      {/* Add/Edit Form Modal */}
+      {/* Add/Edit Dish Modal */}
       {(showAddForm || editingDish) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">
                 {editingDish ? 'Edit Dish' : 'Add New Dish'}
               </h2>
-              
-              <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Dish Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      defaultValue={editingDish?.name || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="Enter dish name"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price ($)
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      step="0.01"
-                      defaultValue={editingDish?.price || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                </div>
-                
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingDish(null);
+                  setSelectedTags([]);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleFormSubmit}>
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    defaultValue={editingDish?.description || ''}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter dish description"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    defaultValue={editingDish?.name || ''}
                     required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
-                    </label>
-                    <select
-                      name="category"
-                      defaultValue={editingDish?.category || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      required
-                    >
-                      <option value="">Select category</option>
-                      <option value="breakfast">Breakfast</option>
-                      <option value="lunch">Lunch</option>
-                      <option value="dinner">Dinner</option>
-                      <option value="snacks">Snacks</option>
-                      <option value="beverages">Beverages</option>
-                      <option value="dessert">Dessert</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Preparation Time (min)
-                    </label>
-                    <input
-                      type="number"
-                      name="preparationTime"
-                      defaultValue={editingDish?.preparationTime || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="15"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Image URL (Required)
-                    </label>
-                    <input
-                      type="url"
-                      name="imageUrl"
-                      defaultValue={editingDish?.imageUrl || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="https://example.com/image.jpg"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      💡 Tip: Right-click any image online and "Copy image address" to get the URL
-                    </p>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                  <input
+                    type="number"
+                    name="price"
+                    step="0.01"
+                    min="0"
+                    defaultValue={editingDish?.price || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
                 </div>
                 
-                {/* Tags Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    rows="3"
+                    defaultValue={editingDish?.description || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    name="category"
+                    defaultValue={editingDish?.category || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Preparation Time (minutes)</label>
+                  <input
+                    type="number"
+                    name="preparationTime"
+                    min="1"
+                    defaultValue={editingDish?.preparationTime || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                  <input
+                    type="url"
+                    name="imageUrl"
+                    defaultValue={editingDish?.imageUrl || ''}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => (
                       <button
@@ -651,93 +547,61 @@ const AdminMenu = () => {
                         className={`px-3 py-1 rounded-full text-sm transition-colors ${
                           selectedTags.includes(tag)
                             ? 'bg-orange-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
                         {tag}
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Select tags to help customers filter dishes (e.g., spicy, vegetarian, popular)
-                  </p>
                 </div>
-                
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setEditingDish(null);
-                      setSelectedTags([]);
-                    }}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                  >
-                    {editingDish ? 'Update Dish' : 'Add Dish'}
-                  </button>
-                </div>
-              </form>
-            </div>
+              </div>
+              
+              <div className="flex space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setEditingDish(null);
+                    setSelectedTags([]);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  {editingDish ? 'Update Dish' : 'Add Dish'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && dishToDelete && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          onClick={handleDeleteCancel}
-        >
-          <div 
-            className="bg-white rounded-lg max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <TrashIcon className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Delete Dish
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    This action cannot be undone.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <p className="text-gray-700">
-                  Are you sure you want to delete <span className="font-semibold text-gray-900">"{dishToDelete.name}"</span>?
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  This will permanently remove the dish from your menu.
-                </p>
-              </div>
-              
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={handleDeleteCancel}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteConfirm}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                >
-                  Delete Dish
-                </button>
-              </div>
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Delete Dish</h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete "{dishToDelete?.name}"? This action cannot be undone.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleDeleteCancel}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

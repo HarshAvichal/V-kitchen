@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { dishesAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
@@ -36,17 +36,72 @@ const Menu = () => {
 
   const { addToCart } = useCart();
 
+  // Fetch dishes function - completely independent
+  const fetchDishes = async (forceRefresh = false, currentFilters = filters, currentPagination = pagination) => {
+    try {
+      setLoading(true);
+      const params = {
+        page: currentPagination.page,
+        limit: currentPagination.limit,
+        ...currentFilters
+      };
+      
+      // Convert tags array to comma-separated string
+      if (currentFilters.tags.length > 0) {
+        params.tags = currentFilters.tags.join(',');
+      }
+
+      const response = await dishesAPI.getDishes(params, forceRefresh);
+      setDishes(response.data.data);
+      setPagination(prev => ({
+        ...prev,
+        total: response.data.total
+      }));
+    } catch (error) {
+      console.error('Error fetching dishes:', error);
+      toast.error('Failed to load dishes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch categories function
+  const fetchCategories = async () => {
+    try {
+      const response = await dishesAPI.getCategories();
+      setCategories(response.data.data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  // Fetch tags function
+  const fetchTags = async () => {
+    try {
+      const response = await dishesAPI.getTags();
+      setTags(response.data.data);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  };
+
+  // Load initial data
+  useEffect(() => {
+    fetchDishes(false, filters, pagination);
+    fetchCategories();
+    fetchTags();
+  }, []);
+
+  // Handle filter changes
+  useEffect(() => {
+    fetchDishes(false, filters, pagination);
+  }, [filters, pagination.page]);
+
   // Handle real-time menu updates
-  const handleMenuUpdate = useCallback((data) => {
+  const handleMenuUpdate = (data) => {
     console.log('Customer: Real-time menu update received:', data);
-    // Refresh dishes when menu is updated - get current state
-    setFilters(currentFilters => {
-      setPagination(currentPagination => {
-        fetchDishes(true, currentFilters, currentPagination);
-        return currentPagination;
-      });
-      return currentFilters;
-    });
+    // Refresh dishes when menu is updated
+    fetchDishes(true, filters, pagination);
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
@@ -58,7 +113,7 @@ const Menu = () => {
         });
       }
     }
-  }, [fetchDishes]);
+  };
 
   // Use menu updates hook
   useMenuUpdates(handleMenuUpdate);
@@ -92,12 +147,6 @@ const Menu = () => {
     setSearchParams(params);
   };
 
-  useEffect(() => {
-    fetchDishes(false, filters, pagination);
-    fetchCategories();
-    fetchTags();
-  }, [filters, pagination.page]);
-
   // Handle URL parameter changes (e.g., browser back/forward)
   useEffect(() => {
     const urlSearch = searchParams.get('search') || '';
@@ -122,52 +171,6 @@ const Menu = () => {
       setPagination(prev => ({ ...prev, page: urlPage }));
     }
   }, [searchParams]);
-
-  const fetchDishes = useCallback(async (forceRefresh = false, currentFilters = filters, currentPagination = pagination) => {
-    try {
-      setLoading(true);
-      const params = {
-        page: currentPagination.page,
-        limit: currentPagination.limit,
-        ...currentFilters
-      };
-      
-      // Convert tags array to comma-separated string
-      if (currentFilters.tags.length > 0) {
-        params.tags = currentFilters.tags.join(',');
-      }
-
-      const response = await dishesAPI.getDishes(params, forceRefresh);
-      setDishes(response.data.data);
-      setPagination(prev => ({
-        ...prev,
-        total: response.data.total
-      }));
-    } catch (error) {
-      console.error('Error fetching dishes:', error);
-      toast.error('Failed to load dishes');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await dishesAPI.getCategories();
-      setCategories(response.data.data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const fetchTags = async () => {
-    try {
-      const response = await dishesAPI.getTags();
-      setTags(response.data.data);
-    } catch (error) {
-      console.error('Error fetching tags:', error);
-    }
-  };
 
   const handleFilterChange = (key, value) => {
     const newFilters = {
@@ -207,62 +210,56 @@ const Menu = () => {
     toast.success(`${dish.name} added to cart!`);
   };
 
-  const clearFilters = () => {
-    const newFilters = {
-      search: '',
-      category: '',
-      tags: [],
-      minPrice: '',
-      maxPrice: '',
-      sort: 'newest'
-    };
+  const handlePageChange = (newPage) => {
     const newPagination = {
       ...pagination,
-      page: 1
+      page: newPage
     };
-    
-    setFilters(newFilters);
     setPagination(newPagination);
-    updateURLParams(newFilters, newPagination);
+    updateURLParams(filters, newPagination);
   };
 
   const totalPages = Math.ceil(pagination.total / pagination.limit);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Our Menu</h1>
-          <p className="text-lg text-gray-600">
-            Discover our delicious collection of home-cooked meals
-          </p>
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Our Menu</h1>
+          <p className="text-xl text-gray-600">Fresh ingredients, delicious flavors</p>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search dishes..."
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                />
-              </div>
+            {/* Search Bar */}
+            <div className="flex-1 relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search dishes..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
             </div>
 
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-orange-600 transition-colors"
             >
-              <FunnelIcon className="h-5 w-5 mr-2" />
-              Filters
+              <FunnelIcon className="h-5 w-5" />
+              <span>Filters</span>
             </button>
           </div>
 
@@ -272,13 +269,11 @@ const Menu = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Category Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                   <select
                     value={filters.category}
                     onChange={(e) => handleFilterChange('category', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   >
                     <option value="">All Categories</option>
                     {categories.map((category) => (
@@ -291,40 +286,34 @@ const Menu = () => {
 
                 {/* Price Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Min Price
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Min Price</label>
                   <input
                     type="number"
-                    placeholder="Min price"
+                    placeholder="0"
                     value={filters.minPrice}
                     onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max Price
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Max Price</label>
                   <input
                     type="number"
-                    placeholder="Max price"
+                    placeholder="100"
                     value={filters.maxPrice}
                     onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
                 </div>
 
                 {/* Sort */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sort By
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
                   <select
                     value={filters.sort}
                     onChange={(e) => handleFilterChange('sort', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
@@ -336,36 +325,24 @@ const Menu = () => {
                 </div>
               </div>
 
-              {/* Tags */}
+              {/* Tags Filter */}
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tags
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
                 <div className="flex flex-wrap gap-2">
                   {tags.map((tag) => (
                     <button
                       key={tag}
                       onClick={() => handleTagToggle(tag)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
                         filters.tags.includes(tag)
                           ? 'bg-orange-500 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                      {tag}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Clear Filters */}
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={clearFilters}
-                  className="text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  Clear All Filters
-                </button>
               </div>
             </div>
           )}
@@ -378,138 +355,116 @@ const Menu = () => {
           </p>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-          </div>
-        )}
-
         {/* Dishes Grid */}
-        {!loading && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {dishes.map((dish) => (
-                <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="aspect-w-16 aspect-h-9">
+        {dishes.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 6.291A7.962 7.962 0 0112 4c-2.34 0-4.29 1.009-5.824 2.709" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No dishes found</h3>
+            <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {dishes.map((dish) => (
+              <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <Link to={`/dish/${dish._id}`}>
+                  <div className="relative">
                     <img
                       src={dish.imageUrl}
                       alt={dish.name}
                       className="w-full h-48 object-cover"
                     />
+                    {!dish.availability && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <span className="text-white font-semibold">Currently Unavailable</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">
-                        {dish.name}
-                      </h3>
-                      {!dish.availability && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
-                          Unavailable
-                        </span>
-                      )}
-                    </div>
-                    
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                      {dish.description}
-                    </p>
-
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-2xl font-bold text-orange-600">
-                        ${dish.price}
+                </Link>
+                
+                <div className="p-4">
+                  <Link to={`/dish/${dish._id}`}>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-orange-500 transition-colors">
+                      {dish.name}
+                    </h3>
+                  </Link>
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{dish.description}</p>
+                  
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xl font-bold text-orange-500">${dish.price}</span>
+                    <span className="text-sm text-gray-500">{dish.preparationTime} min</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {dish.tags?.slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full"
+                      >
+                        {tag}
                       </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {dish.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => handleAddToCart(dish)}
-                      disabled={!dish.availability}
-                      className="w-full bg-orange-500 text-white py-2 px-4 rounded-md font-medium hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {dish.availability ? 'Add to Cart' : 'Unavailable'}
-                    </button>
+                    ))}
+                    {dish.tags?.length > 3 && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        +{dish.tags.length - 3} more
+                      </span>
+                    )}
                   </div>
+                  
+                  <button
+                    onClick={() => handleAddToCart(dish)}
+                    disabled={!dish.availability}
+                    className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+                      dish.availability
+                        ? 'bg-orange-500 text-white hover:bg-orange-600'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {dish.availability ? 'Add to Cart' : 'Unavailable'}
+                  </button>
                 </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-8 flex justify-center">
-                <nav className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      const newPagination = { ...pagination, page: pagination.page - 1 };
-                      setPagination(newPagination);
-                      updateURLParams(filters, newPagination);
-                    }}
-                    disabled={pagination.page === 1}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => {
-                        const newPagination = { ...pagination, page };
-                        setPagination(newPagination);
-                        updateURLParams(filters, newPagination);
-                      }}
-                      className={`px-3 py-2 border rounded-md text-sm font-medium ${
-                        page === pagination.page
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  
-                  <button
-                    onClick={() => {
-                      const newPagination = { ...pagination, page: pagination.page + 1 };
-                      setPagination(newPagination);
-                      updateURLParams(filters, newPagination);
-                    }}
-                    disabled={pagination.page === totalPages}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </nav>
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
 
-        {/* Empty State */}
-        {!loading && dishes.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No dishes found</h3>
-            <p className="text-gray-500 mb-4">Try adjusting your filters or search terms</p>
-            <button
-              onClick={clearFilters}
-              className="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors"
-            >
-              Clear Filters
-            </button>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-8 flex justify-center">
+            <nav className="flex space-x-2">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                    page === pagination.page
+                      ? 'bg-orange-500 text-white'
+                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === totalPages}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </nav>
           </div>
         )}
       </div>
