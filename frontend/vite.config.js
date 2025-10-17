@@ -23,10 +23,14 @@ export default defineConfig({
         assetFileNames: `assets/[name]-[hash].[ext]`
       }
     },
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    cssCodeSplit: false
   },
   // Optimize dependencies
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'axios', 'scheduler']
+  },
+  css: {
+    postcss: './postcss.config.js'
   }
 })
