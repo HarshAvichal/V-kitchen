@@ -8,64 +8,31 @@ const createTransporter = () => {
   console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
   console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
   
-  // Try multiple email configurations for better reliability
-  const configs = [
-    // Configuration 1: Gmail with different settings
-    {
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
-      },
-      connectionTimeout: 30000, // 30 seconds
-      greetingTimeout: 10000,   // 10 seconds
-      socketTimeout: 30000,     // 30 seconds
-      pool: false, // Disable pooling for better reliability
-      secure: true,
-      tls: {
-        rejectUnauthorized: false
-      }
+  // Use a simplified, cloud-optimized Gmail configuration
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465, // Use SSL port for better cloud compatibility
+    secure: true, // Use SSL
+    auth: {
+      user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
+      pass: process.env.EMAIL_PASS || 'your-app-password'
     },
-    // Configuration 2: Alternative Gmail settings
-    {
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
-      },
-      connectionTimeout: 30000,
-      greetingTimeout: 10000,
-      socketTimeout: 30000,
-      tls: {
-        rejectUnauthorized: false
-      }
-    }
-  ];
-  
-  // Try the first configuration
-  let transporter = nodemailer.createTransport(configs[0]);
-  
-  // Verify transporter configuration with retry
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error('❌ Primary email transporter verification failed:', error);
-      console.log('🔄 Trying alternative configuration...');
-      
-      // Try alternative configuration
-      transporter = nodemailer.createTransport(configs[1]);
-      transporter.verify((error2, success2) => {
-        if (error2) {
-          console.error('❌ Alternative email transporter verification failed:', error2);
-        } else {
-          console.log('✅ Alternative email transporter verified successfully');
-        }
-      });
-    } else {
-      console.log('✅ Primary email transporter verified successfully');
-    }
+    // Optimized settings for cloud platforms
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000,   // 30 seconds
+    socketTimeout: 60000,     // 60 seconds
+    pool: false, // Disable pooling to avoid connection issues
+    tls: {
+      rejectUnauthorized: false,
+      ciphers: 'SSLv3'
+    },
+    // Skip verification to avoid timeout issues
+    ignoreTLS: false,
+    requireTLS: true
   });
+  
+  // Skip verification to prevent timeout issues on cloud platforms
+  console.log('📧 Email transporter created (verification skipped for cloud reliability)');
   
   return transporter;
 };
