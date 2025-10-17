@@ -94,6 +94,24 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'V Kitchen API is running!',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/v1/health',
+      auth: '/api/v1/auth',
+      dishes: '/api/v1/dishes',
+      orders: '/api/v1/orders',
+      admin: '/api/v1/admin',
+      payments: '/api/v1/payments'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
