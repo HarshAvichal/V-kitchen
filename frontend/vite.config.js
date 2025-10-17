@@ -20,7 +20,12 @@ export default defineConfig({
             output: {
               entryFileNames: `assets/[name]-[hash].js`,
               chunkFileNames: `assets/[name]-[hash].js`,
-              assetFileNames: `assets/[name]-[hash].[ext]`
+              assetFileNames: (assetInfo) => {
+                if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+                  return `assets/[name]-[hash].css`;
+                }
+                return `assets/[name]-[hash].[ext]`;
+              }
             }
           },
           chunkSizeWarningLimit: 1000,
