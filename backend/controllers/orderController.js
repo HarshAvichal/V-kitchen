@@ -356,71 +356,79 @@ const updateOrderStatus = async (req, res, next) => {
 
     await order.save();
 
-    // Send WebSocket notification for real-time updates
+    // Send WebSocket notification for real-time updates (immediate)
     const socketService = require('../services/socketService');
     socketService.notifyOrderStatusUpdate(order._id, order);
 
-    // Send email notification to customer for status updates (ready and completed)
-    if (status === 'ready' || status === 'completed') {
-      try {
-        // Ensure order is populated with user details before sending email
-        const populatedOrder = await Order.findById(order._id).populate('user', 'name email phone');
-        
-        const { sendOrderStatusUpdateNotification } = require('./newsletterController');
-        await sendOrderStatusUpdateNotification(populatedOrder, status);
-      } catch (emailError) {
-        console.error('Error sending order status update email notification:', emailError);
-        // Don't fail the status update if email fails
-      }
-    }
-
-    // Create order timeline notification based on status
-    try {
-      let notificationType = null;
-      let additionalData = {};
-
-
-      switch (status) {
-        case 'preparing':
-          notificationType = 'kitchen-started';
-          break;
-        case 'ready':
-          // Check delivery type to send appropriate notification
-          if (order.deliveryType === 'pickup') {
-            notificationType = 'ready-pickup';
-            additionalData = { estimatedTime: 30 }; // 30 minutes ETA for pickup
-          } else if (order.deliveryType === 'delivery') {
-            notificationType = 'ready-delivery';
-            additionalData = { 
-              driverName: 'Delivery Driver', // You can enhance this with real driver data
-              estimatedTime: 45 // 45 minutes ETA for delivery
-            };
-          } else {
-            // Fallback to pickup for backward compatibility
-            notificationType = 'ready-pickup';
-            additionalData = { estimatedTime: 30 };
+    // Process notifications and emails asynchronously (non-blocking)
+    Promise.all([
+      // Send email notification to customer for status updates (ready and completed)
+      (async () => {
+        if (status === 'ready' || status === 'completed') {
+          try {
+            // Ensure order is populated with user details before sending email
+            const populatedOrder = await Order.findById(order._id).populate('user', 'name email phone');
+            
+            const { sendOrderStatusUpdateNotification } = require('./newsletterController');
+            await sendOrderStatusUpdateNotification(populatedOrder, status);
+            console.log(`✅ Email notification sent for order ${order.orderNumber} status: ${status}`);
+          } catch (emailError) {
+            console.error('❌ Error sending order status update email notification:', emailError);
           }
-          break;
-        case 'out-for-delivery':
-          notificationType = 'out-for-delivery';
-          additionalData = { driverName: 'Delivery Driver' }; // You can enhance this with real driver data
-          break;
-        case 'completed':
-          notificationType = 'delivered';
-          break;
-        case 'cancelled':
-          notificationType = 'cancelled';
-          additionalData = { reason: notes || 'Order cancelled' };
-          break;
-      }
+        }
+      })(),
 
-      if (notificationType) {
-        await createOrderTimelineNotification(order._id, notificationType, additionalData);
-      }
-    } catch (notificationError) {
-      console.error('Error creating order status notification:', notificationError);
-      // Don't fail the status update if notification fails
-    }
+      // Create order timeline notification based on status
+      (async () => {
+        try {
+          let notificationType = null;
+          let additionalData = {};
+
+          switch (status) {
+            case 'preparing':
+              notificationType = 'kitchen-started';
+              break;
+            case 'ready':
+              // Check delivery type to send appropriate notification
+              if (order.deliveryType === 'pickup') {
+                notificationType = 'ready-pickup';
+                additionalData = { estimatedTime: 30 }; // 30 minutes ETA for pickup
+              } else if (order.deliveryType === 'delivery') {
+                notificationType = 'ready-delivery';
+                additionalData = { 
+                  driverName: 'Delivery Driver', // You can enhance this with real driver data
+                  estimatedTime: 45 // 45 minutes ETA for delivery
+                };
+              } else {
+                // Fallback to pickup for backward compatibility
+                notificationType = 'ready-pickup';
+                additionalData = { estimatedTime: 30 };
+              }
+              break;
+            case 'out-for-delivery':
+              notificationType = 'out-for-delivery';
+              additionalData = { driverName: 'Delivery Driver' }; // You can enhance this with real driver data
+              break;
+            case 'completed':
+              notificationType = 'delivered';
+              break;
+            case 'cancelled':
+              notificationType = 'cancelled';
+              additionalData = { reason: notes || 'Order cancelled' };
+              break;
+          }
+
+          if (notificationType) {
+            await createOrderTimelineNotification(order._id, notificationType, additionalData);
+            console.log(`✅ Notification created for order ${order.orderNumber} status: ${status}`);
+          }
+        } catch (notificationError) {
+          console.error('❌ Error creating order status notification:', notificationError);
+        }
+      })()
+    ]).catch(err => {
+      console.error('❌ Error in parallel notification processing:', err);
+    });
 
     res.status(200).json({
       success: true,

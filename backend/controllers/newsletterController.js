@@ -9,7 +9,15 @@ const createTransporter = () => {
     auth: {
       user: process.env.EMAIL_USER || 'v-kitchen@gmail.com',
       pass: process.env.EMAIL_PASS || 'your-app-password' // Use App Password for Gmail
-    }
+    },
+    // Add timeout configuration to prevent delays
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 5000,    // 5 seconds
+    socketTimeout: 10000,     // 10 seconds
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    rateLimit: 10 // max 10 emails per second
   });
 };
 
