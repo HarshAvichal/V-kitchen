@@ -80,7 +80,7 @@ const AdminLayout = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{backgroundColor: '#f9fafb'}}>
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
@@ -109,6 +109,16 @@ const AdminLayout = ({ children }) => {
                     ? 'bg-orange-100 text-orange-700'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  borderRadius: '6px',
+                  color: isActive(item.href) ? '#c2410c' : '#4b5563',
+                  backgroundColor: isActive(item.href) ? '#fed7aa' : 'transparent'
+                }}
                 onClick={() => setSidebarOpen(false)}
               >
                 <item.icon
