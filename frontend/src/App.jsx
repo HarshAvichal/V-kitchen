@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Suspense, lazy } from 'react';
@@ -39,6 +40,9 @@ import AdminRoute from './components/AdminRoute';
 import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
+  // Debug: Log React version
+  console.log('React version:', React.version);
+  
   return (
     <AuthProvider>
       <CartProvider>
