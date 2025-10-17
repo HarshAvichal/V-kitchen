@@ -22,5 +22,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Force CSS loading by creating a style element
+      window.addEventListener('load', () => {
+        fetch('/assets/style-BkPWz9OJ.css')
+          .then(response => response.text())
+          .then(css => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          })
+          .catch(err => console.error('Failed to load CSS:', err));
+      });
+    </script>
   </body>
 </html>
