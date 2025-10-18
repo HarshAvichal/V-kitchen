@@ -33,6 +33,8 @@ const AdminMenu = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [togglingAvailability, setTogglingAvailability] = useState(null);
 
   // Fetch dishes function - completely independent
   const fetchDishes = async (forceRefresh = false, currentFilters = filters) => {
@@ -97,9 +99,7 @@ const AdminMenu = () => {
           handleDeleteCancel();
         }
         if (showAddForm || editingDish) {
-          setShowAddForm(false);
-          setEditingDish(null);
-          setSelectedTags([]);
+          resetForm();
         }
       }
     };
@@ -171,7 +171,7 @@ const AdminMenu = () => {
     
     try {
       await dishesAPI.deleteDish(dishToDelete._id);
-      toast.success('Dish deleted successfully');
+      toast.success(`"${dishToDelete.name}" deleted successfully`);
       // Refresh dishes after deletion
       setTimeout(() => {
         fetchDishes(true, filters);
@@ -180,7 +180,8 @@ const AdminMenu = () => {
       setDishToDelete(null);
     } catch (error) {
       console.error('Error deleting dish:', error);
-      toast.error('Failed to delete dish');
+      const errorMessage = error.response?.data?.message || 'Failed to delete dish';
+      toast.error(errorMessage);
     }
   };
 
@@ -190,12 +191,16 @@ const AdminMenu = () => {
   };
 
   const handleToggleAvailability = async (dish) => {
+    if (togglingAvailability === dish._id) return; // Prevent double clicks
+    
+    setTogglingAvailability(dish._id);
     try {
+      const newAvailability = !dish.availability;
       await dishesAPI.updateDish(dish._id, {
         ...dish,
-        availability: !dish.availability
+        availability: newAvailability
       });
-      toast.success(`Dish ${dish.availability ? 'hidden' : 'shown'} successfully`);
+      toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       // Refresh dishes after update
       setTimeout(() => {
         fetchDishes(true, filters);
@@ -203,6 +208,8 @@ const AdminMenu = () => {
     } catch (error) {
       console.error('Error updating dish:', error);
       toast.error('Failed to update dish availability');
+    } finally {
+      setTogglingAvailability(null);
     }
   };
 
@@ -234,21 +241,78 @@ const AdminMenu = () => {
     );
   };
 
+  const resetForm = () => {
+    setShowAddForm(false);
+    setEditingDish(null);
+    setSelectedTags([]);
+    setIsSubmitting(false);
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Prevent double submission
+    
+    setIsSubmitting(true);
+    
     const formData = new FormData(e.target);
+    
+    // Basic form validation
+    const name = formData.get('name')?.trim();
+    const price = parseFloat(formData.get('price'));
+    const description = formData.get('description')?.trim();
+    const category = formData.get('category');
+    const preparationTime = parseInt(formData.get('preparationTime'));
+    const imageUrl = formData.get('imageUrl')?.trim();
+    
+    // Validate required fields
+    if (!name || name.length < 2) {
+      toast.error('Dish name must be at least 2 characters long');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!price || price <= 0) {
+      toast.error('Price must be a positive number');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!description || description.length < 10) {
+      toast.error('Description must be at least 10 characters long');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!category) {
+      toast.error('Please select a category');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!preparationTime || preparationTime < 1) {
+      toast.error('Preparation time must be at least 1 minute');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!imageUrl || !imageUrl.startsWith('http')) {
+      toast.error('Please provide a valid image URL');
+      setIsSubmitting(false);
+      return;
+    }
+    
     const dishData = {
-      name: formData.get('name'),
-      price: parseFloat(formData.get('price')),
-      description: formData.get('description'),
-      category: formData.get('category'),
-      preparationTime: parseInt(formData.get('preparationTime')),
-      imageUrl: formData.get('imageUrl'),
+      name,
+      price,
+      description,
+      category,
+      preparationTime,
+      imageUrl,
       tags: selectedTags.length > 0 ? selectedTags : ['popular'],
       availability: true,
-      ingredients: ['Rice', 'Spices', 'Vegetables'],
-      nutritionalInfo: {
+      ingredients: editingDish?.ingredients || ['Rice', 'Spices', 'Vegetables'],
+      nutritionalInfo: editingDish?.nutritionalInfo || {
         calories: 300,
         protein: 15,
         carbs: 40,
@@ -266,9 +330,7 @@ const AdminMenu = () => {
       }
       
       // Reset form and close modal
-      setShowAddForm(false);
-      setEditingDish(null);
-      setSelectedTags([]);
+      resetForm();
       
       // Refresh dishes after create/update
       setTimeout(() => {
@@ -276,7 +338,10 @@ const AdminMenu = () => {
       }, 100);
     } catch (error) {
       console.error('Error saving dish:', error);
-      toast.error('Failed to save dish');
+      const errorMessage = error.response?.data?.message || 'Failed to save dish';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -371,8 +436,26 @@ const AdminMenu = () => {
       )}
 
       {/* Dishes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {dishes.map((dish) => (
+      {dishes.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-400 mb-4">
+            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 6.291A7.962 7.962 0 0112 4c-2.34 0-4.29 1.009-5.824 2.709" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No dishes found</h3>
+          <p className="text-gray-500 mb-4">Try adjusting your search or filter criteria, or add a new dish.</p>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors flex items-center space-x-2 mx-auto"
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span>Add New Dish</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {dishes.map((dish) => (
           <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div className="relative">
               <img
@@ -383,14 +466,19 @@ const AdminMenu = () => {
               <div className="absolute top-2 right-2">
                 <button
                   onClick={() => handleToggleAvailability(dish)}
-                  className={`p-2 rounded-full ${
-                    dish.availability
+                  disabled={togglingAvailability === dish._id}
+                  className={`p-2 rounded-full transition-colors ${
+                    togglingAvailability === dish._id
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : dish.availability
                       ? 'bg-green-500 text-white hover:bg-green-600'
                       : 'bg-red-500 text-white hover:bg-red-600'
                   }`}
                   title={dish.availability ? 'Hide dish' : 'Show dish'}
                 >
-                  {dish.availability ? (
+                  {togglingAvailability === dish._id ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : dish.availability ? (
                     <EyeIcon className="h-4 w-4" />
                   ) : (
                     <EyeSlashIcon className="h-4 w-4" />
@@ -436,8 +524,9 @@ const AdminMenu = () => {
               </div>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Dish Modal */}
       {(showAddForm || editingDish) && (
@@ -448,11 +537,7 @@ const AdminMenu = () => {
                 {editingDish ? 'Edit Dish' : 'Add New Dish'}
               </h2>
               <button
-                onClick={() => {
-                  setShowAddForm(false);
-                  setEditingDish(null);
-                  setSelectedTags([]);
-                }}
+                onClick={resetForm}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <XMarkIcon className="h-6 w-6" />
@@ -560,20 +645,28 @@ const AdminMenu = () => {
               <div className="flex space-x-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setEditingDish(null);
-                    setSelectedTags([]);
-                  }}
+                  onClick={resetForm}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                  disabled={isSubmitting}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
+                    isSubmitting
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-orange-500 text-white hover:bg-orange-600'
+                  }`}
                 >
-                  {editingDish ? 'Update Dish' : 'Add Dish'}
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>{editingDish ? 'Updating...' : 'Adding...'}</span>
+                    </>
+                  ) : (
+                    <span>{editingDish ? 'Update Dish' : 'Add Dish'}</span>
+                  )}
                 </button>
               </div>
             </form>
