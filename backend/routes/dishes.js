@@ -1,6 +1,6 @@
 const express = require('express');
 const { protect, authorize } = require('../middleware/auth');
-const { validateDish } = require('../utils/validation');
+const { validateDish, validateDishUpdate } = require('../utils/validation');
 const {
   getDishes,
   getDish,
@@ -21,7 +21,7 @@ router.get('/:id', getDish);
 
 // Protected routes (Admin only)
 router.post('/', protect, authorize('admin'), validateDish, createDish);
-router.put('/:id', protect, authorize('admin'), validateDish, updateDish);
+router.put('/:id', protect, authorize('admin'), validateDishUpdate, updateDish);
 router.delete('/:id', protect, authorize('admin'), deleteDish);
 
 module.exports = router;

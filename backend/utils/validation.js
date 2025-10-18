@@ -43,7 +43,7 @@ const validateUserLogin = [
   handleValidationErrors
 ];
 
-// Dish validation rules
+// Dish validation rules for creation
 const validateDish = [
   body('name')
     .trim()
@@ -67,6 +67,45 @@ const validateDish = [
     .optional()
     .isInt({ min: 1 })
     .withMessage('Preparation time must be a positive integer'),
+  handleValidationErrors
+];
+
+// Dish validation rules for updates (only validate fields that are present)
+const validateDishUpdate = [
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Dish name must be between 2 and 100 characters'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 500 })
+    .withMessage('Description must be between 10 and 500 characters'),
+  body('price')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Price must be a positive number'),
+  body('category')
+    .optional()
+    .isIn(['breakfast', 'lunch', 'dinner', 'snacks', 'beverages', 'dessert'])
+    .withMessage('Category must be one of: breakfast, lunch, dinner, snacks, beverages, dessert'),
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+  body('preparationTime')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Preparation time must be a positive integer'),
+  body('availability')
+    .optional()
+    .isBoolean()
+    .withMessage('Availability must be a boolean'),
+  body('imageUrl')
+    .optional()
+    .isURL()
+    .withMessage('Image URL must be a valid URL'),
   handleValidationErrors
 ];
 
@@ -118,6 +157,7 @@ module.exports = {
   validateUserRegistration,
   validateUserLogin,
   validateDish,
+  validateDishUpdate,
   validateOrder,
   validateOrderStatusUpdate
 };
