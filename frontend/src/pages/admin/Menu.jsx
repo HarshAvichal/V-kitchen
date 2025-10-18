@@ -112,34 +112,7 @@ const AdminMenu = () => {
   const handleMenuUpdate = (data) => {
     console.log('Admin: Real-time menu update received:', data);
     
-    // Handle different types of updates
-    if (data.action === 'updated' || data.updateType === 'dish-updated') {
-      const updatedDish = data.dish || data.data;
-      if (updatedDish) {
-        // Immediately update local state
-        setDishes(prevDishes => 
-          prevDishes.map(d => 
-            d._id === updatedDish._id 
-              ? { ...d, ...updatedDish }
-              : d
-          )
-        );
-      }
-    } else if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
-      const deletedDishId = data.dish?._id || data.data?.id;
-      if (deletedDishId) {
-        // Immediately remove from local state
-        setDishes(prevDishes => prevDishes.filter(dish => dish._id !== deletedDishId));
-      }
-    } else if (data.action === 'created' || data.updateType === 'dish-added') {
-      const newDish = data.dish || data.data;
-      if (newDish) {
-        // Immediately add to local state
-        setDishes(prevDishes => [newDish, ...prevDishes]);
-      }
-    }
-    
-    // Also refresh from server to ensure consistency
+    // Always refresh from server for real-time updates to ensure consistency
     fetchDishes(true, filters);
   };
 
@@ -203,16 +176,11 @@ const AdminMenu = () => {
       console.log('Delete response:', response);
       toast.success(`"${dishToDelete.name}" deleted successfully`);
       
-      // Immediately update local state
-      setDishes(prevDishes => prevDishes.filter(dish => dish._id !== dishToDelete._id));
-      
-      // Also refresh from server to ensure consistency
-      setTimeout(() => {
-        fetchDishes(true, filters);
-      }, 100);
-      
       setShowDeleteModal(false);
       setDishToDelete(null);
+      
+      // Immediately refresh from server to get updated data
+      await fetchDishes(true, filters);
     } catch (error) {
       console.error('Error deleting dish:', error);
       console.error('Error details:', error.response?.data);
@@ -242,19 +210,8 @@ const AdminMenu = () => {
       
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       
-      // Immediately update local state
-      setDishes(prevDishes => 
-        prevDishes.map(d => 
-          d._id === dish._id 
-            ? { ...d, availability: newAvailability }
-            : d
-        )
-      );
-      
-      // Also refresh from server to ensure consistency
-      setTimeout(() => {
-        fetchDishes(true, filters);
-      }, 100);
+      // Immediately refresh from server to get updated data
+      await fetchDishes(true, filters);
     } catch (error) {
       console.error('Error updating dish:', error);
       console.error('Error details:', error.response?.data);
@@ -379,32 +336,18 @@ const AdminMenu = () => {
         const response = await dishesAPI.updateDish(editingDish._id, dishData);
         console.log('Update response:', response);
         toast.success('Dish updated successfully');
-        
-        // Immediately update local state
-        setDishes(prevDishes => 
-          prevDishes.map(d => 
-            d._id === editingDish._id 
-              ? { ...d, ...dishData }
-              : d
-          )
-        );
       } else {
         console.log('Creating new dish');
         const response = await dishesAPI.createDish(dishData);
         console.log('Create response:', response);
         toast.success('Dish added successfully');
-        
-        // Immediately add to local state
-        setDishes(prevDishes => [response.data.data, ...prevDishes]);
       }
       
       // Reset form and close modal
       resetForm();
       
-      // Also refresh from server to ensure consistency
-      setTimeout(() => {
-        fetchDishes(true, filters);
-      }, 100);
+      // Immediately refresh from server to get updated data
+      await fetchDishes(true, filters);
     } catch (error) {
       console.error('Error saving dish:', error);
       console.error('Error details:', error.response?.data);
