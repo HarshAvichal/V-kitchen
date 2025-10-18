@@ -72,29 +72,54 @@ const allowedOrigins = [
   'http://localhost:5174',
   'http://localhost:3000',
   'https://vkitchen.vercel.app',
+  'https://v-kitchen.vercel.app',
   process.env.FRONTEND_URL,
   process.env.VITE_FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('CORS request from origin:', origin);
+    
     // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('Allowing request with no origin');
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(origin)) {
+      console.log('Origin allowed:', origin);
       return callback(null, true);
     }
     
     // In production, allow any Vercel domain
     if (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')) {
+      console.log('Vercel domain allowed:', origin);
       return callback(null, true);
     }
     
+    console.log('Origin blocked:', origin);
     const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
     return callback(new Error(msg), false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }));
+
+// Additional CORS headers as fallback
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -124,8 +149,15 @@ app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'V Kitchen API is running!',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    database: 'connected'
   });
+});
+
+// Simple health check for load balancers
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
 });
 
 // API routes

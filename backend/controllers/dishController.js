@@ -162,23 +162,35 @@ const createDish = async (req, res, next) => {
 // @access  Private (Admin only)
 const updateDish = async (req, res, next) => {
   try {
+    console.log('Update dish request:', req.params.id, req.body);
+    
     let dish = await Dish.findById(req.params.id);
 
     if (!dish) {
+      console.log('Dish not found:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Dish not found'
       });
     }
 
+    console.log('Found dish:', dish.name);
+    
     dish = await Dish.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
     });
 
+    console.log('Updated dish:', dish);
+
     // Emit WebSocket event for real-time updates
-    socketService.notifyDishUpdate(dish, 'updated');
-    socketService.notifyMenuUpdate('dish-updated', dish);
+    try {
+      socketService.notifyDishUpdate(dish, 'updated');
+      socketService.notifyMenuUpdate('dish-updated', dish);
+    } catch (socketError) {
+      console.error('WebSocket error:', socketError);
+      // Don't fail the request if WebSocket fails
+    }
 
     res.status(200).json({
       success: true,
@@ -186,6 +198,7 @@ const updateDish = async (req, res, next) => {
       data: dish
     });
   } catch (error) {
+    console.error('Update dish error:', error);
     next(error);
   }
 };
