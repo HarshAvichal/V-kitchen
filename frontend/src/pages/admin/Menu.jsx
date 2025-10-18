@@ -198,7 +198,9 @@ const AdminMenu = () => {
     if (!dishToDelete) return;
     
     try {
-      await dishesAPI.deleteDish(dishToDelete._id);
+      console.log('Deleting dish:', dishToDelete._id);
+      const response = await dishesAPI.deleteDish(dishToDelete._id);
+      console.log('Delete response:', response);
       toast.success(`"${dishToDelete.name}" deleted successfully`);
       
       // Immediately update local state
@@ -213,8 +215,9 @@ const AdminMenu = () => {
       setDishToDelete(null);
     } catch (error) {
       console.error('Error deleting dish:', error);
+      console.error('Error details:', error.response?.data);
       const errorMessage = error.response?.data?.message || 'Failed to delete dish';
-      toast.error(errorMessage);
+      toast.error(`Error: ${errorMessage}`);
     }
   };
 
@@ -229,10 +232,14 @@ const AdminMenu = () => {
     setTogglingAvailability(dish._id);
     try {
       const newAvailability = !dish.availability;
-      await dishesAPI.updateDish(dish._id, {
-        ...dish,
+      const updateData = {
         availability: newAvailability
-      });
+      };
+      
+      console.log('Updating dish availability:', dish._id, updateData);
+      const response = await dishesAPI.updateDish(dish._id, updateData);
+      console.log('Update response:', response);
+      
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       
       // Immediately update local state
@@ -250,7 +257,8 @@ const AdminMenu = () => {
       }, 100);
     } catch (error) {
       console.error('Error updating dish:', error);
-      toast.error('Failed to update dish availability');
+      console.error('Error details:', error.response?.data);
+      toast.error(`Failed to update dish availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setTogglingAvailability(null);
     }
@@ -364,8 +372,12 @@ const AdminMenu = () => {
     };
 
     try {
+      console.log('Submitting dish data:', dishData);
+      
       if (editingDish) {
+        console.log('Updating dish:', editingDish._id);
         const response = await dishesAPI.updateDish(editingDish._id, dishData);
+        console.log('Update response:', response);
         toast.success('Dish updated successfully');
         
         // Immediately update local state
@@ -377,7 +389,9 @@ const AdminMenu = () => {
           )
         );
       } else {
+        console.log('Creating new dish');
         const response = await dishesAPI.createDish(dishData);
+        console.log('Create response:', response);
         toast.success('Dish added successfully');
         
         // Immediately add to local state
@@ -393,8 +407,9 @@ const AdminMenu = () => {
       }, 100);
     } catch (error) {
       console.error('Error saving dish:', error);
+      console.error('Error details:', error.response?.data);
       const errorMessage = error.response?.data?.message || 'Failed to save dish';
-      toast.error(errorMessage);
+      toast.error(`Error: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
