@@ -111,7 +111,35 @@ const AdminMenu = () => {
   // Handle real-time menu updates
   const handleMenuUpdate = (data) => {
     console.log('Admin: Real-time menu update received:', data);
-    // Refresh dishes when menu is updated
+    
+    // Handle different types of updates
+    if (data.action === 'updated' || data.updateType === 'dish-updated') {
+      const updatedDish = data.dish || data.data;
+      if (updatedDish) {
+        // Immediately update local state
+        setDishes(prevDishes => 
+          prevDishes.map(d => 
+            d._id === updatedDish._id 
+              ? { ...d, ...updatedDish }
+              : d
+          )
+        );
+      }
+    } else if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
+      const deletedDishId = data.dish?._id || data.data?.id;
+      if (deletedDishId) {
+        // Immediately remove from local state
+        setDishes(prevDishes => prevDishes.filter(dish => dish._id !== deletedDishId));
+      }
+    } else if (data.action === 'created' || data.updateType === 'dish-added') {
+      const newDish = data.dish || data.data;
+      if (newDish) {
+        // Immediately add to local state
+        setDishes(prevDishes => [newDish, ...prevDishes]);
+      }
+    }
+    
+    // Also refresh from server to ensure consistency
     fetchDishes(true, filters);
   };
 
@@ -172,10 +200,15 @@ const AdminMenu = () => {
     try {
       await dishesAPI.deleteDish(dishToDelete._id);
       toast.success(`"${dishToDelete.name}" deleted successfully`);
-      // Refresh dishes after deletion
+      
+      // Immediately update local state
+      setDishes(prevDishes => prevDishes.filter(dish => dish._id !== dishToDelete._id));
+      
+      // Also refresh from server to ensure consistency
       setTimeout(() => {
         fetchDishes(true, filters);
       }, 100);
+      
       setShowDeleteModal(false);
       setDishToDelete(null);
     } catch (error) {
@@ -201,7 +234,17 @@ const AdminMenu = () => {
         availability: newAvailability
       });
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
-      // Refresh dishes after update
+      
+      // Immediately update local state
+      setDishes(prevDishes => 
+        prevDishes.map(d => 
+          d._id === dish._id 
+            ? { ...d, availability: newAvailability }
+            : d
+        )
+      );
+      
+      // Also refresh from server to ensure consistency
       setTimeout(() => {
         fetchDishes(true, filters);
       }, 100);
@@ -322,17 +365,29 @@ const AdminMenu = () => {
 
     try {
       if (editingDish) {
-        await dishesAPI.updateDish(editingDish._id, dishData);
+        const response = await dishesAPI.updateDish(editingDish._id, dishData);
         toast.success('Dish updated successfully');
+        
+        // Immediately update local state
+        setDishes(prevDishes => 
+          prevDishes.map(d => 
+            d._id === editingDish._id 
+              ? { ...d, ...dishData }
+              : d
+          )
+        );
       } else {
-        await dishesAPI.createDish(dishData);
+        const response = await dishesAPI.createDish(dishData);
         toast.success('Dish added successfully');
+        
+        // Immediately add to local state
+        setDishes(prevDishes => [response.data.data, ...prevDishes]);
       }
       
       // Reset form and close modal
       resetForm();
       
-      // Refresh dishes after create/update
+      // Also refresh from server to ensure consistency
       setTimeout(() => {
         fetchDishes(true, filters);
       }, 100);
