@@ -183,6 +183,12 @@ const Menu = () => {
       if (newDish) {
         console.log('Customer: Adding new dish:', newDish.name);
         setDishes(prevDishes => {
+          // Check if dish already exists to prevent duplicates
+          const dishExists = prevDishes.some(dish => dish._id === newDish._id);
+          if (dishExists) {
+            console.log('Customer: Dish already exists, skipping duplicate addition');
+            return prevDishes;
+          }
           const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
           return updatedDishes;
         });
