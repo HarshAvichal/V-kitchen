@@ -12,7 +12,7 @@ import OptimizedImage from '../components/OptimizedImage';
 
 const Home = () => {
   console.log('Home component rendering...');
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const [popularDishes, setPopularDishes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,13 +22,30 @@ const Home = () => {
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  // Redirect admin users to admin dashboard
+  // Redirect admin users to admin dashboard (prevent flash)
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'admin') {
+    if (!isLoading && isAuthenticated && user?.role === 'admin') {
       console.log('🏠 HOME: Admin user detected, redirecting to admin dashboard');
-      navigate('/admin/dashboard');
+      navigate('/admin/dashboard', { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isLoading, isAuthenticated, user, navigate]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render homepage for admin users (prevent flash)
+  if (isAuthenticated && user?.role === 'admin') {
+    return null;
+  }
 
   // Function to randomly select 4 dishes from popular dishes
   const getRandomDishes = useCallback((dishes, count = 4) => {
