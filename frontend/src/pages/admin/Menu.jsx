@@ -80,7 +80,7 @@ const AdminMenu = () => {
 
   // Load initial data
   useEffect(() => {
-    fetchDishes(false, filters);
+    fetchDishes(true, filters); // Always force refresh on initial load to get fresh data
   }, []);
 
   // Handle filter changes
