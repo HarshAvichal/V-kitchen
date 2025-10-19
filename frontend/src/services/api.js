@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/
 // Enhanced cache implementation with different durations for different data types
 const cache = new Map();
 const CACHE_DURATIONS = {
-  dishes: 0, // No caching for dishes (they change frequently)
+  dishes: 5 * 60 * 1000, // 5 minutes for dishes (optimized for performance)
   categories: 30 * 60 * 1000, // 30 minutes for categories
   tags: 30 * 60 * 1000, // 30 minutes for tags
   orders: 2 * 60 * 1000, // 2 minutes for orders (more dynamic)
@@ -169,20 +169,36 @@ export const authAPI = {
 export const dishesAPI = {
   // GET /api/v1/dishes
   getDishes: async (params = {}, forceRefresh = false) => {
-    // Always bypass cache for dishes since they change frequently
-    console.log('🔄 API CALL: Fetching dishes - bypassing cache (dishes cache disabled)');
+    const cacheKey = `dishes_${JSON.stringify(params)}`;
+    
+    // Check cache first unless force refresh is requested
+    if (!forceRefresh && cache.has(cacheKey)) {
+      const cached = cache.get(cacheKey);
+      const now = Date.now();
+      
+      if (now - cached.timestamp < CACHE_DURATIONS.dishes) {
+        console.log('🚀 API CACHE HIT: Returning cached dishes data');
+        return cached.data;
+      } else {
+        console.log('⏰ API CACHE EXPIRED: Removing expired cache');
+        cache.delete(cacheKey);
+      }
+    }
+    
+    console.log('🔄 API CALL: Fetching dishes from server');
     console.log('🔄 API CALL: Params:', params);
     console.log('🔄 API CALL: Force refresh:', forceRefresh);
     
-    // Add timestamp to prevent browser caching
-    const cacheBustParams = {
-      ...params,
-      _t: Date.now()
-    };
-    
-    const response = await api.get('/dishes', { params: cacheBustParams });
+    const response = await api.get('/dishes', { params });
     console.log('🔄 API CALL: Response received:', response.data);
     console.log('🔄 API CALL: Dishes count:', response.data.data?.length);
+    
+    // Cache the response
+    cache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now()
+    });
+    
     return response;
   },
   

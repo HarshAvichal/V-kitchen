@@ -76,14 +76,30 @@ const Home = () => {
     }
   }, [popularDishes, getRandomDishes, isTransitioning]);
 
+  // Preload images for better performance
+  const preloadImages = useCallback((dishes) => {
+    dishes.forEach(dish => {
+      if (dish.imageUrl) {
+        const img = new Image();
+        img.src = dish.imageUrl;
+        // Optional: Add error handling
+        img.onerror = () => console.warn('Failed to preload image:', dish.imageUrl);
+      }
+    });
+  }, []);
+
   // Fetch popular dishes function
-  const fetchPopularDishes = useCallback(async (forceRefresh = true) => {
+  const fetchPopularDishes = useCallback(async (forceRefresh = false) => {
     try {
       console.log('🏠 HOME: Fetching popular dishes with forceRefresh:', forceRefresh);
       setLoading(true);
       const response = await dishesAPI.getDishes({ tags: 'popular' }, forceRefresh);
       console.log('🏠 HOME: Received popular dishes:', response.data.data.length);
-      setPopularDishes(response.data.data);
+      const dishes = response.data.data;
+      setPopularDishes(dishes);
+      
+      // Preload images for better performance
+      preloadImages(dishes);
     } catch (error) {
       console.error('Error fetching popular dishes:', error);
       // Fallback to hardcoded data if API fails
@@ -120,15 +136,17 @@ const Home = () => {
           imageUrl: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
           category: 'snacks'
         }
-      ]);
+      ];
+      setPopularDishes(fallbackDishes);
+      preloadImages(fallbackDishes);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [preloadImages]);
 
   // Load initial data
   useEffect(() => {
-    fetchPopularDishes(true); // Always force refresh on initial load
+    fetchPopularDishes(false); // Use cache for faster initial load
   }, [fetchPopularDishes]);
 
   // Handle real-time menu updates
@@ -273,8 +291,17 @@ const Home = () => {
             </p>
           </div>
           {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white rounded-lg shadow-lg overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-200"></div>
+                  <div className="p-6">
+                    <div className="h-6 bg-gray-200 rounded-lg mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded-lg mb-4"></div>
+                    <div className="h-6 bg-gray-200 rounded-lg w-20"></div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="relative overflow-hidden">
