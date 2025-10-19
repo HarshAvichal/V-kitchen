@@ -88,6 +88,7 @@ const AdminMenu = () => {
 
   // Load initial data
   useEffect(() => {
+    console.log('🔴 COMPONENT MOUNTED - AdminMenu component is loaded');
     fetchDishes(false, filters);
     fetchCategories();
     fetchTags();
@@ -507,7 +508,12 @@ const AdminMenu = () => {
               />
               <div className="absolute top-2 right-2">
                 <button
-                  onClick={() => handleToggleAvailability(dish)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔴 BUTTON CLICKED - Eye icon clicked for dish:', dish.name);
+                    handleToggleAvailability(dish);
+                  }}
                   disabled={togglingAvailability === dish._id}
                   className={`p-2 rounded-full transition-colors ${
                     togglingAvailability === dish._id
