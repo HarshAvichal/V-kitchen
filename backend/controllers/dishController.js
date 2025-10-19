@@ -147,21 +147,36 @@ const getDish = async (req, res, next) => {
 // @access  Private (Admin only)
 const createDish = async (req, res, next) => {
   try {
+    console.log('🆕 CREATE DISH REQUEST:', req.body);
+    
     // Add user to req.body
     req.body.createdBy = req.user.id;
+    console.log('✅ Added createdBy:', req.body.createdBy);
 
-    const dish = await Dish.create(req.body);
+    const dish = new Dish(req.body);
+    console.log('✅ Created dish object:', dish);
+    
+    const savedDish = await dish.save();
+    console.log('✅ SAVED DISH:', savedDish);
+    console.log('✅ SAVED DISH ID:', savedDish._id);
+    console.log('✅ SAVED DISH NAME:', savedDish.name);
+    
+    // Verify the dish was actually saved by querying the database
+    const verifyDish = await Dish.findById(savedDish._id);
+    console.log('✅ VERIFICATION CREATE RESULT:', verifyDish);
+    console.log('✅ VERIFICATION CREATE NAME:', verifyDish?.name);
 
     // Emit WebSocket event for real-time updates
-    socketService.notifyDishUpdate(dish, 'created');
-    socketService.notifyMenuUpdate('dish-added', dish);
+    socketService.notifyDishUpdate(savedDish, 'created');
+    socketService.notifyMenuUpdate('dish-added', savedDish);
 
     res.status(201).json({
       success: true,
       message: 'Dish created successfully',
-      data: dish
+      data: savedDish
     });
   } catch (error) {
+    console.error('❌ CREATE DISH ERROR:', error);
     next(error);
   }
 };
