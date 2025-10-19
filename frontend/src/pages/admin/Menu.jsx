@@ -89,7 +89,7 @@ const AdminMenu = () => {
 
   // Handle filter changes
   useEffect(() => {
-    fetchDishes(false, filters);
+    fetchDishes(true, filters); // Always force refresh to get fresh data
   }, [filters]);
 
   // Handle escape key to close modals

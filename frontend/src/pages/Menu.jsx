@@ -132,7 +132,7 @@ const Menu = () => {
 
   // Handle filter changes
   useEffect(() => {
-    fetchDishes(false, filters, pagination);
+    fetchDishes(true, filters, pagination); // Always force refresh to get fresh data
   }, [filters, pagination.page]);
 
   // Handle real-time menu updates
