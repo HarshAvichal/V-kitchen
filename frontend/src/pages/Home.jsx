@@ -11,15 +11,24 @@ import toast from 'react-hot-toast';
 import OptimizedImage from '../components/OptimizedImage';
 
 const Home = () => {
+  console.log('Home component rendering...');
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [popularDishes, setPopularDishes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [displayedDishes, setDisplayedDishes] = useState([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [nextDishes, setNextDishes] = useState([]);
+  const [email, setEmail] = useState('');
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
-  // Immediate admin redirect check - prevent any rendering
-  if (!isLoading && isAuthenticated && user?.role === 'admin') {
-    console.log('🏠 HOME: Admin user detected, redirecting immediately');
-    navigate('/admin/dashboard', { replace: true });
-    return null; // Return null immediately to prevent any rendering
-  }
+  // Redirect admin users to admin dashboard (prevent flash)
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user?.role === 'admin') {
+      console.log('🏠 HOME: Admin user detected, redirecting to admin dashboard');
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [isLoading, isAuthenticated, user, navigate]);
 
   // Show loading while checking authentication
   if (isLoading) {
@@ -37,15 +46,6 @@ const Home = () => {
   if (isAuthenticated && user?.role === 'admin') {
     return null;
   }
-
-  console.log('Home component rendering...');
-  const [popularDishes, setPopularDishes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [displayedDishes, setDisplayedDishes] = useState([]);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [nextDishes, setNextDishes] = useState([]);
-  const [email, setEmail] = useState('');
-  const [isSubscribing, setIsSubscribing] = useState(false);
 
   // Function to randomly select 4 dishes from popular dishes
   const getRandomDishes = useCallback((dishes, count = 4) => {
