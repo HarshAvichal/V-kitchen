@@ -122,7 +122,7 @@ const Menu = () => {
 
   // Load initial data
   useEffect(() => {
-    fetchDishes(false, filters, pagination);
+    fetchDishes(true, filters, pagination); // Force refresh on initial load to get latest data
   }, []);
 
   // Handle filter changes
