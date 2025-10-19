@@ -79,26 +79,34 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('CORS request from origin:', origin);
+    console.log('🌐 CORS request from origin:', origin);
+    console.log('🌐 Allowed origins:', allowedOrigins);
+    console.log('🌐 NODE_ENV:', process.env.NODE_ENV);
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
-      console.log('Allowing request with no origin');
+      console.log('✅ Allowing request with no origin');
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
-      console.log('Origin allowed:', origin);
+      console.log('✅ Origin allowed (in list):', origin);
       return callback(null, true);
     }
     
     // In production, allow any Vercel domain
     if (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')) {
-      console.log('Vercel domain allowed:', origin);
+      console.log('✅ Vercel domain allowed:', origin);
       return callback(null, true);
     }
     
-    console.log('Origin blocked:', origin);
+    // Additional check for any vercel.app subdomain
+    if (origin && origin.includes('vercel.app')) {
+      console.log('✅ Any Vercel domain allowed:', origin);
+      return callback(null, true);
+    }
+    
+    console.log('❌ Origin blocked:', origin);
     const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
     return callback(new Error(msg), false);
   },
@@ -108,13 +116,24 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-// Additional CORS headers as fallback
+// Additional CORS headers as fallback - more permissive for production
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  console.log('🔧 Fallback CORS - Origin:', origin);
+  
+  // Allow specific origins
+  if (origin && (origin.includes('vercel.app') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
+    console.log('🔧 Handling OPTIONS preflight request');
     res.sendStatus(200);
   } else {
     next();
