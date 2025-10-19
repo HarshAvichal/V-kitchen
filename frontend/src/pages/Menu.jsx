@@ -63,11 +63,7 @@ const Menu = () => {
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
       
-      console.log('🔍 FETCHED DISHES FROM SERVER:', response.data.data.map(d => ({ 
-        id: d._id, 
-        name: d.name, 
-        availability: d.availability 
-      })));
+      // Server data fetched successfully
       
       // AGGRESSIVE: Completely recreate the dishes array with new objects
       const newDishes = response.data.data.map((dish, index) => ({
@@ -132,12 +128,7 @@ const Menu = () => {
 
   // Handle real-time menu updates
   const handleMenuUpdate = (data) => {
-    console.log('🔄 Customer: Real-time menu update received:', data);
-    console.log('🔄 Current dishes before update:', dishes.map(d => ({ 
-      id: d._id, 
-      name: d.name, 
-      availability: d.availability 
-    })));
+    // Real-time menu update received
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
@@ -150,7 +141,39 @@ const Menu = () => {
       }
     }
     
-    // Always refresh from server for real-time updates to ensure consistency
+    // IMMEDIATE UI UPDATE for specific dish changes
+    if (data.action === 'updated' || data.updateType === 'dish-updated') {
+      const updatedDish = data.dish || data.data;
+      if (updatedDish) {
+        // Updating specific dish immediately
+        setDishes(prevDishes => {
+          const updatedDishes = prevDishes.map(dish => 
+            dish._id === updatedDish._id 
+              ? { ...updatedDish, _forceUpdate: Date.now() }
+              : dish
+          );
+          return [...updatedDishes];
+        });
+        setRefreshKey(prev => prev + 1);
+        return; // Skip the full refresh for specific updates
+      }
+    }
+    
+    // Handle dish deletion
+    if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
+      const deletedDishId = data.dish?._id || data.data?._id;
+      if (deletedDishId) {
+        // Removing deleted dish immediately
+        setDishes(prevDishes => {
+          const updatedDishes = prevDishes.filter(dish => dish._id !== deletedDishId);
+          return [...updatedDishes];
+        });
+        setRefreshKey(prev => prev + 1);
+        return; // Skip the full refresh for deletions
+      }
+    }
+    
+    // Force refresh dishes when menu is updated (for other changes)
     fetchDishes(true, filters, pagination);
   };
 

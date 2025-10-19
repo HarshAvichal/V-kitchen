@@ -134,6 +134,38 @@ const AdminMenu = () => {
       return;
     }
     
+    // IMMEDIATE UI UPDATE for specific dish changes
+    if (data.action === 'updated' || data.updateType === 'dish-updated') {
+      const updatedDish = data.dish || data.data;
+      if (updatedDish) {
+        console.log('Admin: Updating specific dish immediately:', updatedDish);
+        setDishes(prevDishes => {
+          const updatedDishes = prevDishes.map(dish => 
+            dish._id === updatedDish._id 
+              ? { ...updatedDish, _forceUpdate: Date.now() }
+              : dish
+          );
+          return [...updatedDishes];
+        });
+        setRefreshKey(prev => prev + 1);
+        return; // Skip the full refresh for specific updates
+      }
+    }
+    
+    // Handle dish deletion
+    if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
+      const deletedDishId = data.dish?._id || data.data?._id;
+      if (deletedDishId) {
+        console.log('Admin: Removing deleted dish immediately:', deletedDishId);
+        setDishes(prevDishes => {
+          const updatedDishes = prevDishes.filter(dish => dish._id !== deletedDishId);
+          return [...updatedDishes];
+        });
+        setRefreshKey(prev => prev + 1);
+        return; // Skip the full refresh for deletions
+      }
+    }
+    
     // Always refresh from server for real-time updates to ensure consistency
     fetchDishes(true, filters);
   };
