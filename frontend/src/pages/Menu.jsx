@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { dishesAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
@@ -33,6 +33,15 @@ const Menu = () => {
     total: 0
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Force re-render by creating completely new objects
+  const forceRerender = useCallback(() => {
+    setDishes(prevDishes => {
+      return prevDishes.map(dish => ({ ...dish, _forceUpdate: Date.now() }));
+    });
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   const { addToCart } = useCart();
 
@@ -53,11 +62,17 @@ const Menu = () => {
       }
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
-      setDishes(response.data.data);
+      
+      // Force React to re-render by creating a new array reference
+      const newDishes = [...response.data.data];
+      setDishes(newDishes);
       setPagination(prev => ({
         ...prev,
         total: response.data.total
       }));
+      
+      // Force component re-render
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error fetching dishes:', error);
       toast.error('Failed to load dishes');
@@ -358,6 +373,7 @@ const Menu = () => {
         </div>
 
         {/* Dishes Grid */}
+        <div key={refreshKey}>
         {dishes.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4">
@@ -432,6 +448,7 @@ const Menu = () => {
             ))}
           </div>
         )}
+        </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
