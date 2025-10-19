@@ -728,32 +728,68 @@ const sendOrderNotification = async (order) => {
     console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
     console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
     
-    const transporter = createTransporter();
+    // Try to send email with retry mechanism
+    const maxRetries = 3;
+    let lastError = null;
     
-    const mailOptions = {
-      from: `"V-Kitchen Admin" <${process.env.EMAIL_USER || 'studynotion.pro@gmail.com'}>`,
-      to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com', // Admin email
-      subject: `🍽️ New Order Alert - #${order.orderNumber}`,
-      html: createOrderNotificationTemplate(order)
-    };
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`📧 Email attempt ${attempt}/${maxRetries}`);
+        
+        const transporter = createTransporter();
+        
+        const mailOptions = {
+          from: `"V-Kitchen Admin" <${process.env.EMAIL_USER || 'studynotion.pro@gmail.com'}>`,
+          to: process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com',
+          subject: `🍽️ New Order Alert - #${order.orderNumber}`,
+          html: createOrderNotificationTemplate(order)
+        };
 
-    console.log('📧 Sending email to:', mailOptions.to);
+        console.log('📧 Sending email to:', mailOptions.to);
+        
+        // Use a shorter timeout for each attempt
+        const emailPromise = transporter.sendMail(mailOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email timeout after 10 seconds')), 10000)
+        );
+        
+        await Promise.race([emailPromise, timeoutPromise]);
+        console.log('✅ Order notification email sent successfully');
+        console.log('📧 ===== ORDER NOTIFICATION EMAIL END =====');
+        return true;
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ Email attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          console.log(`🔄 Retrying in ${attempt * 2} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        }
+      }
+    }
     
-    // Use a promise with timeout to prevent hanging
-    const emailPromise = transporter.sendMail(mailOptions);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Email timeout after 30 seconds')), 30000)
-    );
+    // If all attempts failed, log but don't fail the order
+    console.error('❌ All email attempts failed:', lastError);
+    console.log('⚠️ Order notification email failed after all retries, but order was still processed');
     
-    await Promise.race([emailPromise, timeoutPromise]);
-    console.log('✅ Order notification email sent successfully');
+    // Fallback: Log order details to console for manual tracking
+    console.log('📋 ===== ORDER DETAILS (EMAIL FAILED) =====');
+    console.log('📋 Order Number:', order.orderNumber);
+    console.log('📋 Customer:', order.user?.name, `(${order.user?.email})`);
+    console.log('📋 Phone:', order.contactPhone);
+    console.log('📋 Total Amount: $' + order.totalAmount);
+    console.log('📋 Items:', order.items?.map(item => `${item.quantity}x ${item.dish?.name}`).join(', '));
+    console.log('📋 Delivery Type:', order.deliveryType);
+    if (order.deliveryAddress) {
+      console.log('📋 Address:', `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zipCode}`);
+    }
+    console.log('📋 ===== END ORDER DETAILS =====');
     console.log('📧 ===== ORDER NOTIFICATION EMAIL END =====');
-    return true;
-  } catch (error) {
-    console.error('❌ Error sending order notification:', error.message);
-    console.error('❌ Full error details:', error);
+    return false;
     
-    // Log the error but don't fail the order process
+  } catch (error) {
+    console.error('❌ Error in sendOrderNotification:', error.message);
     console.log('⚠️ Order notification email failed, but order was still processed');
     return false;
   }
