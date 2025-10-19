@@ -19,26 +19,11 @@
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" href="/v-logo.svg" />
     
-    <!-- Preload CSS for faster loading -->
-    <link rel="preload" href="/assets/style-BkPWz9OJ.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="/assets/style-BkPWz9OJ.css"></noscript>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      // Force CSS loading immediately to prevent FOUC
-      (function() {
-        fetch('/assets/style-BkPWz9OJ.css')
-          .then(response => response.text())
-          .then(css => {
-            const style = document.createElement('style');
-            style.textContent = css;
-            document.head.appendChild(style);
-          })
-          .catch(err => console.error('Failed to load CSS:', err));
-      })();
-      
       // Ensure page starts at top
       window.addEventListener('load', () => {
         window.scrollTo(0, 0);
