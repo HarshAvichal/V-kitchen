@@ -88,6 +88,7 @@ const AdminMenu = () => {
 
   // Load initial data
   useEffect(() => {
+    alert('🔴 ADMIN MENU COMPONENT LOADED - This should appear when you visit /admin/menu');
     console.log('🔴 COMPONENT MOUNTED - AdminMenu component is loaded');
     fetchDishes(false, filters);
     fetchCategories();
