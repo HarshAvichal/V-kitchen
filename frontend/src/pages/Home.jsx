@@ -103,7 +103,7 @@ const Home = () => {
     } catch (error) {
       console.error('Error fetching popular dishes:', error);
       // Fallback to hardcoded data if API fails
-      setPopularDishes([
+      const fallbackDishes = [
         {
           _id: 1,
           name: 'Chicken Biryani',
