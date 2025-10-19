@@ -36,7 +36,6 @@ const AdminMenu = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [justUpdated, setJustUpdated] = useState(false);
   
   // Force re-render by creating completely new objects
   const forceRerender = useCallback(() => {
@@ -157,8 +156,8 @@ const AdminMenu = () => {
       }
     }
     
-    // Always refresh from server for real-time updates to ensure consistency
-    fetchDishes(true, filters);
+    // Note: We rely on immediate UI updates above for better performance
+    // Only refresh from server if no specific update was handled
   };
 
   // Use menu updates hook
