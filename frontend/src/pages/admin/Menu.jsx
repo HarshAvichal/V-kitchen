@@ -36,6 +36,7 @@ const AdminMenu = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [justUpdated, setJustUpdated] = useState(false);
   
   // Force re-render by creating completely new objects
   const forceRerender = useCallback(() => {
@@ -126,6 +127,13 @@ const AdminMenu = () => {
   const handleMenuUpdate = (data) => {
     console.log('Admin: Real-time menu update received:', data);
     
+    // Skip real-time update if we just made a change ourselves
+    // This prevents race conditions where our local state gets overwritten
+    if (justUpdated) {
+      console.log('Admin: Skipping real-time update - we just made a change');
+      return;
+    }
+    
     // Always refresh from server for real-time updates to ensure consistency
     fetchDishes(true, filters);
   };
@@ -187,6 +195,8 @@ const AdminMenu = () => {
     const dishToDeleteId = dishToDelete._id;
     const dishToDeleteName = dishToDelete.name;
     
+    setJustUpdated(true); // Prevent real-time updates from overwriting our changes
+    
     try {
       const response = await dishesAPI.deleteDish(dishToDeleteId);
       toast.success(`"${dishToDeleteName}" deleted successfully`);
@@ -203,9 +213,15 @@ const AdminMenu = () => {
       setShowDeleteModal(false);
       setDishToDelete(null);
       
+      // Reset the flag after a short delay to allow real-time updates again
+      setTimeout(() => {
+        setJustUpdated(false);
+      }, 2000);
+      
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Failed to delete dish';
       toast.error(`Error: ${errorMessage}`);
+      setJustUpdated(false); // Reset on error
     }
   };
 
@@ -218,6 +234,8 @@ const AdminMenu = () => {
     if (togglingAvailability === dish._id) return; // Prevent double clicks
     
     setTogglingAvailability(dish._id);
+    setJustUpdated(true); // Prevent real-time updates from overwriting our changes
+    
     try {
       const newAvailability = !dish.availability;
       const updateData = {
@@ -238,8 +256,14 @@ const AdminMenu = () => {
       // Force component re-render
       forceRerender();
       
+      // Reset the flag after a short delay to allow real-time updates again
+      setTimeout(() => {
+        setJustUpdated(false);
+      }, 2000);
+      
     } catch (error) {
       toast.error(`Failed to update dish availability: ${error.response?.data?.message || error.message}`);
+      setJustUpdated(false); // Reset on error
     } finally {
       setTogglingAvailability(null);
     }
