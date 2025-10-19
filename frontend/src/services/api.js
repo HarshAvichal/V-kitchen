@@ -169,34 +169,17 @@ export const authAPI = {
 export const dishesAPI = {
   // GET /api/v1/dishes
   getDishes: async (params = {}, forceRefresh = false) => {
-    const cacheKey = getCacheKey('/dishes', params);
-    
-    // If force refresh is requested, skip cache completely
-    if (forceRefresh) {
-      console.log('Force refreshing dishes - bypassing cache');
-      const response = await api.get('/dishes', { params });
-      // Don't cache when force refreshing - always get fresh data
-      return response;
-    }
-    
-    const cachedData = getCachedData(cacheKey, 'dishes');
-    if (cachedData) {
-      return Promise.resolve(cachedData);
-    }
+    // Always bypass cache for dishes since they change frequently
+    console.log('Fetching dishes - bypassing cache (dishes cache disabled)');
     const response = await api.get('/dishes', { params });
-    setCachedData(cacheKey, response);
     return response;
   },
   
   // GET /api/v1/dishes/:id
   getDish: async (id) => {
-    const cacheKey = getCacheKey(`/dishes/${id}`);
-    const cachedData = getCachedData(cacheKey, 'dishes');
-    if (cachedData) {
-      return Promise.resolve(cachedData);
-    }
+    // Always bypass cache for individual dishes since they change frequently
+    console.log('Fetching dish - bypassing cache (dishes cache disabled)');
     const response = await api.get(`/dishes/${id}`);
-    setCachedData(cacheKey, response);
     return response;
   },
   
