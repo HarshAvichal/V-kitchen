@@ -63,8 +63,13 @@ const Menu = () => {
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
       
-      // Force React to re-render by creating a new array reference
-      const newDishes = [...response.data.data];
+      // AGGRESSIVE: Completely recreate the dishes array with new objects
+      const newDishes = response.data.data.map((dish, index) => ({
+        ...dish,
+        _forceUpdate: Date.now() + index,
+        _refreshKey: refreshKey + 1
+      }));
+      
       setDishes(newDishes);
       setPagination(prev => ({
         ...prev,
@@ -73,6 +78,12 @@ const Menu = () => {
       
       // Force component re-render
       setRefreshKey(prev => prev + 1);
+      
+      // Additional force re-render after state update
+      setTimeout(() => {
+        setDishes(prevDishes => [...prevDishes]);
+        setRefreshKey(prev => prev + 1);
+      }, 100);
     } catch (error) {
       console.error('Error fetching dishes:', error);
       toast.error('Failed to load dishes');
@@ -387,7 +398,7 @@ const Menu = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {dishes.map((dish) => (
-              <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={`${dish._id}-${dish._forceUpdate || refreshKey}`} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 <Link to={`/dish/${dish._id}`}>
                   <div className="relative">
                     <img
