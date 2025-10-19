@@ -190,6 +190,13 @@ const AdminMenu = () => {
       console.log('Admin: About to refresh dishes after delete');
       await fetchDishes(true, filters);
       console.log('Admin: Dishes refreshed after delete');
+      
+      // Force immediate UI update by removing the dish from state
+      setDishes(prevDishes => {
+        const updatedDishes = prevDishes.filter(d => d._id !== dishToDelete._id);
+        console.log('Admin: Removed dish from state, new count:', updatedDishes.length);
+        return updatedDishes;
+      });
     } catch (error) {
       console.error('Error deleting dish:', error);
       console.error('Error details:', error.response?.data);
@@ -224,6 +231,15 @@ const AdminMenu = () => {
       console.log('Admin: About to refresh dishes after toggle');
       await fetchDishes(true, filters);
       console.log('Admin: Dishes refreshed after toggle');
+      
+      // Force immediate UI update by updating the specific dish in state
+      setDishes(prevDishes => {
+        const updatedDishes = prevDishes.map(d => 
+          d._id === dish._id ? { ...d, availability: newAvailability } : d
+        );
+        console.log('Admin: Updated dish in state:', updatedDishes.find(d => d._id === dish._id));
+        return updatedDishes;
+      });
     } catch (error) {
       console.error('Error updating dish:', error);
       console.error('Error details:', error.response?.data);
