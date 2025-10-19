@@ -48,7 +48,8 @@ const AdminMenu = () => {
   // Fetch dishes function - completely independent
   const fetchDishes = async (forceRefresh = false, currentFilters = filters) => {
     try {
-      console.log('Admin: fetchDishes called with forceRefresh:', forceRefresh);
+      console.log('🔍 ADMIN: fetchDishes called with forceRefresh:', forceRefresh);
+      console.log('🔍 ADMIN: currentFilters:', currentFilters);
       setLoading(true);
       const params = { ...currentFilters };
       
@@ -57,21 +58,24 @@ const AdminMenu = () => {
         params.tags = currentFilters.tags.join(',');
       }
 
+      console.log('🔍 ADMIN: Final params being sent:', params);
       const response = await dishesAPI.getDishes(params, forceRefresh);
-      console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
-      console.log('Admin: Server returned dishes:', response.data.data.map(d => ({ 
+      console.log('🔍 ADMIN: fetchDishes response:', response.data.data.length, 'dishes');
+      console.log('🔍 ADMIN: Server returned dishes:', response.data.data.map(d => ({ 
         id: d._id, 
         name: d.name, 
+        price: d.price,
         isActive: d.isActive,
         availability: d.availability 
       })));
       
       // Force React to re-render by creating a new array reference
       const newDishes = [...response.data.data];
+      console.log('🔍 ADMIN: Setting dishes state with:', newDishes.length, 'dishes');
       setDishes(newDishes);
       setRefreshKey(prev => prev + 1); // Force component re-render
     } catch (error) {
-      console.error('Error fetching dishes:', error);
+      console.error('❌ ADMIN: Error fetching dishes:', error);
       toast.error('Failed to load dishes');
     } finally {
       setLoading(false);

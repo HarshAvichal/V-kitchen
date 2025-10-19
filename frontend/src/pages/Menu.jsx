@@ -48,6 +48,9 @@ const Menu = () => {
   // Fetch dishes function - completely independent
   const fetchDishes = async (forceRefresh = false, currentFilters = filters, currentPagination = pagination) => {
     try {
+      console.log('🔍 CUSTOMER: fetchDishes called with forceRefresh:', forceRefresh);
+      console.log('🔍 CUSTOMER: currentFilters:', currentFilters);
+      console.log('🔍 CUSTOMER: currentPagination:', currentPagination);
       setLoading(true);
       const params = {
         page: currentPagination.page,
@@ -61,12 +64,14 @@ const Menu = () => {
         params.tags = currentFilters.tags.join(',');
       }
 
+      console.log('🔍 CUSTOMER: Final params being sent:', params);
       const response = await dishesAPI.getDishes(params, forceRefresh);
       
       // Debug: Check what server returns
-      console.log('Customer: Server returned dishes:', response.data.data.map(d => ({ 
+      console.log('🔍 CUSTOMER: Server returned dishes:', response.data.data.map(d => ({ 
         id: d._id, 
         name: d.name, 
+        price: d.price,
         isActive: d.isActive,
         availability: d.availability 
       })));
