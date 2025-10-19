@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/
 // Enhanced cache implementation with different durations for different data types
 const cache = new Map();
 const CACHE_DURATIONS = {
-  dishes: 10 * 60 * 1000, // 10 minutes for dishes (they don't change often)
+  dishes: 0, // No caching for dishes (they change frequently)
   categories: 30 * 60 * 1000, // 30 minutes for categories
   tags: 30 * 60 * 1000, // 30 minutes for tags
   orders: 2 * 60 * 1000, // 2 minutes for orders (more dynamic)
@@ -77,6 +77,20 @@ const setCachedData = (key, data) => {
     data,
     timestamp: Date.now()
   });
+};
+
+const clearCache = (pattern = null) => {
+  if (pattern) {
+    // Clear specific cache entries matching pattern
+    for (const key of cache.keys()) {
+      if (key.includes(pattern)) {
+        cache.delete(key);
+      }
+    }
+  } else {
+    // Clear all cache
+    cache.clear();
+  }
 };
 
 // Clear cache for dishes-related data
