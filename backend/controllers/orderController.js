@@ -140,15 +140,25 @@ const confirmPayment = async (req, res, next) => {
         // Email notification (async, non-blocking)
         (async () => {
           try {
+            console.log('📧 Starting email notification process for order:', order._id);
             const populatedOrder = await Order.findById(order._id).populate({
               path: 'items.dish',
               select: 'name description price imageUrl'
             }).populate('user', 'name email phone');
             
+            console.log('📧 Populated order data:', {
+              orderId: populatedOrder._id,
+              orderNumber: populatedOrder.orderNumber,
+              customerName: populatedOrder.user?.name,
+              customerEmail: populatedOrder.user?.email,
+              itemsCount: populatedOrder.items?.length
+            });
+            
             const { sendOrderNotification } = require('./newsletterController');
-            await sendOrderNotification(populatedOrder);
+            const emailResult = await sendOrderNotification(populatedOrder);
+            console.log('📧 Email notification result:', emailResult);
           } catch (err) {
-            console.error('Error sending order email notification:', err);
+            console.error('❌ Error sending order email notification:', err);
           }
         })()
       ]).catch(err => {
@@ -704,6 +714,33 @@ const simulatePayment = async (req, res, next) => {
     // Send WebSocket notification
     const socketService = require('../services/socketService');
     socketService.notifyPaymentSuccess(orderId, order);
+
+    // Send email notification to admin (async, non-blocking)
+    (async () => {
+      try {
+        console.log('📧 Starting SIMULATED PAYMENT email notification process for order:', orderId);
+        const populatedOrder = await Order.findById(orderId).populate({
+          path: 'items.dish',
+          select: 'name description price imageUrl'
+        }).populate('user', 'name email phone');
+        
+        console.log('📧 Simulated payment - Populated order data:', {
+          orderId: populatedOrder._id,
+          orderNumber: populatedOrder.orderNumber,
+          customerName: populatedOrder.user?.name,
+          customerEmail: populatedOrder.user?.email,
+          itemsCount: populatedOrder.items?.length,
+          totalAmount: populatedOrder.totalAmount
+        });
+        
+        const { sendOrderNotification } = require('./newsletterController');
+        const emailResult = await sendOrderNotification(populatedOrder);
+        console.log('📧 Simulated payment - Email notification result:', emailResult);
+        console.log('✅ Order notification email sent for simulated payment');
+      } catch (err) {
+        console.error('❌ Error sending order email notification for simulated payment:', err);
+      }
+    })();
 
     res.json({
       success: true,

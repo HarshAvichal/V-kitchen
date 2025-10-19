@@ -25,10 +25,8 @@ router.get('/:id', getOrder);
 router.put('/:id/cancel', cancelOrder);
 router.delete('/:id', deleteOrder);
 
-// Development only - simulate payment
-if (process.env.NODE_ENV === 'development') {
-  router.post('/:id/simulate-payment', simulatePayment);
-}
+// Simulate payment (available in both development and production for Stripe test mode)
+router.post('/:id/simulate-payment', simulatePayment);
 
 // Admin routes
 router.put('/:id/status', authorize('admin'), validateOrderStatusUpdate, updateOrderStatus);

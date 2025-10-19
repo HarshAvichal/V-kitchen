@@ -17,7 +17,7 @@ const createTransporter = () => {
       secure: false,
       auth: {
         user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
+        pass: (process.env.EMAIL_PASS || 'your-app-password').replace(/\s/g, '')
       },
       connectionTimeout: 20000,
       greetingTimeout: 10000,
@@ -35,7 +35,7 @@ const createTransporter = () => {
       secure: true,
       auth: {
         user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
+        pass: (process.env.EMAIL_PASS || 'your-app-password').replace(/\s/g, '')
       },
       connectionTimeout: 20000,
       greetingTimeout: 10000,
@@ -704,7 +704,11 @@ const getNewsletterStats = async (req, res, next) => {
 // @access  Private (Admin only)
 const sendOrderNotification = async (order) => {
   try {
+    console.log('📧 ===== ORDER NOTIFICATION EMAIL START =====');
     console.log('📧 Attempting to send order notification email...');
+    console.log('📧 Order ID:', order._id);
+    console.log('📧 Order Number:', order.orderNumber);
+    console.log('📧 Customer:', order.user?.name, order.user?.email);
     console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
     console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
     console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
@@ -728,6 +732,7 @@ const sendOrderNotification = async (order) => {
     
     await Promise.race([emailPromise, timeoutPromise]);
     console.log('✅ Order notification email sent successfully');
+    console.log('📧 ===== ORDER NOTIFICATION EMAIL END =====');
     return true;
   } catch (error) {
     console.error('❌ Error sending order notification:', error.message);
