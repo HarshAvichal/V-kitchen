@@ -63,7 +63,13 @@ const Menu = () => {
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
       
-      // Server data fetched successfully
+      // Debug: Check what server returns
+      console.log('Customer: Server returned dishes:', response.data.data.map(d => ({ 
+        id: d._id, 
+        name: d.name, 
+        isActive: d.isActive,
+        availability: d.availability 
+      })));
       
       // AGGRESSIVE: Completely recreate the dishes array with new objects
       const newDishes = response.data.data.map((dish, index) => ({
