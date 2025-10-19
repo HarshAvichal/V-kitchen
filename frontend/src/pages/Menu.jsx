@@ -123,8 +123,6 @@ const Menu = () => {
   // Load initial data
   useEffect(() => {
     fetchDishes(false, filters, pagination);
-    fetchCategories();
-    fetchTags();
   }, []);
 
   // Handle filter changes
