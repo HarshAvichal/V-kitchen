@@ -74,6 +74,13 @@ const getDishes = async (req, res, next) => {
       .populate('createdBy', 'name email')
       .lean(); // Use lean() for better performance when we don't need full mongoose documents
 
+    console.log('🔍 DISHES RETURNED:', dishes.length);
+    console.log('🔍 DISHES DATA:', dishes.map(d => ({ 
+      name: d.name, 
+      availability: d.availability, 
+      isActive: d.isActive 
+    })));
+
     // Pagination result
     const pagination = {};
 
@@ -184,12 +191,20 @@ const updateDish = async (req, res, next) => {
     });
 
     console.log('✅ UPDATE RESULT:', updateResult);
+    console.log('✅ UPDATE RESULT AVAILABILITY:', updateResult.availability);
+    console.log('✅ UPDATE RESULT ISACTIVE:', updateResult.isActive);
     console.log('✅ Database save successful for dish:', updateResult.name);
+    
+    // Verify the update was actually saved by querying the database again
+    const verifyDish = await Dish.findById(req.params.id);
+    console.log('✅ VERIFICATION QUERY RESULT:', verifyDish);
+    console.log('✅ VERIFICATION AVAILABILITY:', verifyDish.availability);
+    console.log('✅ VERIFICATION ISACTIVE:', verifyDish.isActive);
 
     // Emit WebSocket event for real-time updates
     try {
-      socketService.notifyDishUpdate(dish, 'updated');
-      socketService.notifyMenuUpdate('dish-updated', dish);
+      socketService.notifyDishUpdate(updateResult, 'updated');
+      socketService.notifyMenuUpdate('dish-updated', updateResult);
     } catch (socketError) {
       console.error('WebSocket error:', socketError);
       // Don't fail the request if WebSocket fails
@@ -198,7 +213,7 @@ const updateDish = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Dish updated successfully',
-      data: dish
+      data: updateResult
     });
   } catch (error) {
     console.error('Update dish error:', error);
