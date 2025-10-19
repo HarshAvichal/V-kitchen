@@ -146,6 +146,9 @@ const getDish = async (req, res, next) => {
 // @route   POST /api/v1/dishes
 // @access  Private (Admin only)
 const createDish = async (req, res, next) => {
+  const session = await Dish.startSession();
+  session.startTransaction();
+  
   try {
     console.log('🆕 CREATE DISH REQUEST:', req.body);
     
@@ -156,15 +159,21 @@ const createDish = async (req, res, next) => {
     const dish = new Dish(req.body);
     console.log('✅ Created dish object:', dish);
     
-    const savedDish = await dish.save();
-    console.log('✅ SAVED DISH:', savedDish);
+    // Save with session to ensure transaction
+    const savedDish = await dish.save({ session });
+    console.log('✅ SAVED DISH WITH SESSION:', savedDish);
     console.log('✅ SAVED DISH ID:', savedDish._id);
     console.log('✅ SAVED DISH NAME:', savedDish.name);
+    
+    // Commit the transaction
+    await session.commitTransaction();
+    console.log('✅ TRANSACTION COMMITTED');
     
     // Verify the dish was actually saved by querying the database
     const verifyDish = await Dish.findById(savedDish._id);
     console.log('✅ VERIFICATION CREATE RESULT:', verifyDish);
     console.log('✅ VERIFICATION CREATE NAME:', verifyDish?.name);
+    console.log('✅ VERIFICATION CREATE ISACTIVE:', verifyDish?.isActive);
 
     // Emit WebSocket event for real-time updates
     socketService.notifyMenuUpdate('dish-added', savedDish);
@@ -176,7 +185,10 @@ const createDish = async (req, res, next) => {
     });
   } catch (error) {
     console.error('❌ CREATE DISH ERROR:', error);
+    await session.abortTransaction();
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 
@@ -184,13 +196,17 @@ const createDish = async (req, res, next) => {
 // @route   PUT /api/v1/dishes/:id
 // @access  Private (Admin only)
 const updateDish = async (req, res, next) => {
+  const session = await Dish.startSession();
+  session.startTransaction();
+  
   try {
     console.log('🔄 UPDATE DISH REQUEST:', req.params.id, req.body);
     
-    let dish = await Dish.findById(req.params.id);
+    let dish = await Dish.findById(req.params.id).session(session);
 
     if (!dish) {
       console.log('❌ Dish not found:', req.params.id);
+      await session.abortTransaction();
       return res.status(404).json({
         success: false,
         message: 'Dish not found'
@@ -209,13 +225,17 @@ const updateDish = async (req, res, next) => {
     
     console.log('✅ Dish after update:', dish);
     
-    // Save the dish to ensure data persistence
-    const updateResult = await dish.save();
+    // Save the dish with session to ensure data persistence
+    const updateResult = await dish.save({ session });
     
-    console.log('✅ SAVE RESULT:', updateResult);
+    console.log('✅ SAVE RESULT WITH SESSION:', updateResult);
     console.log('✅ SAVE RESULT AVAILABILITY:', updateResult.availability);
     console.log('✅ SAVE RESULT ISACTIVE:', updateResult.isActive);
     console.log('✅ Database save successful for dish:', updateResult.name);
+    
+    // Commit the transaction
+    await session.commitTransaction();
+    console.log('✅ UPDATE TRANSACTION COMMITTED');
     
     // Verify the update was actually saved by querying the database again
     const verifyDish = await Dish.findById(req.params.id);
@@ -239,7 +259,10 @@ const updateDish = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Update dish error:', error);
+    await session.abortTransaction();
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 
@@ -247,13 +270,17 @@ const updateDish = async (req, res, next) => {
 // @route   DELETE /api/v1/dishes/:id
 // @access  Private (Admin only)
 const deleteDish = async (req, res, next) => {
+  const session = await Dish.startSession();
+  session.startTransaction();
+  
   try {
     console.log('🗑️ DELETE DISH REQUEST:', req.params.id);
     
-    const dish = await Dish.findById(req.params.id);
+    const dish = await Dish.findById(req.params.id).session(session);
 
     if (!dish) {
       console.log('❌ Dish not found for deletion:', req.params.id);
+      await session.abortTransaction();
       return res.status(404).json({
         success: false,
         message: 'Dish not found'
@@ -264,10 +291,14 @@ const deleteDish = async (req, res, next) => {
     
     // Soft delete - set isActive to false
     dish.isActive = false;
-    const saveResult = await dish.save();
+    const saveResult = await dish.save({ session });
     
-    console.log('✅ DELETE SAVE RESULT:', saveResult);
+    console.log('✅ DELETE SAVE RESULT WITH SESSION:', saveResult);
     console.log('✅ Database soft delete successful for dish:', dish.name, 'isActive:', saveResult.isActive);
+    
+    // Commit the transaction
+    await session.commitTransaction();
+    console.log('✅ DELETE TRANSACTION COMMITTED');
     
     // Verify the delete was actually saved by querying the database again
     const verifyDeletedDish = await Dish.findById(req.params.id);
@@ -284,7 +315,10 @@ const deleteDish = async (req, res, next) => {
     });
   } catch (error) {
     console.error('❌ DELETE ERROR:', error);
+    await session.abortTransaction();
     next(error);
+  } finally {
+    session.endSession();
   }
 };
 
