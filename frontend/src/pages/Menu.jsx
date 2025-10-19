@@ -14,8 +14,8 @@ import toast from 'react-hot-toast';
 const Menu = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [dishes, setDishes] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [categories, setCategories] = useState(['Beverages', 'Breakfast & Snacks', 'Lunch', 'Dinner', 'Dessert']);
+  const [tags, setTags] = useState(['popular', 'spicy', 'vegetarian', 'non-vegetarian', 'mild', 'dessert']);
   const [loading, setLoading] = useState(true);
   
   // Initialize filters from URL parameters

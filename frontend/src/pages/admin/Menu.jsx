@@ -17,8 +17,8 @@ import toast from 'react-hot-toast';
 const AdminMenu = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [dishes, setDishes] = useState([]);
-  const [categories, setCategories] = useState(['Beverages', 'Breakfast & Snacks', 'Lunch', 'Dinner']);
-  const [tags, setTags] = useState(['popular', 'spicy', 'vegetarian', 'non-vegetarian', 'mild']);
+  const [categories, setCategories] = useState(['Beverages', 'Breakfast & Snacks', 'Lunch', 'Dinner', 'Dessert']);
+  const [tags, setTags] = useState(['popular', 'spicy', 'vegetarian', 'non-vegetarian', 'mild', 'dessert']);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
