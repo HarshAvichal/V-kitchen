@@ -116,11 +116,18 @@ const AdminMenu = () => {
       if (updatedDish) {
         console.log('Admin: Updating specific dish immediately:', updatedDish);
         setDishes(prevDishes => {
-          const updatedDishes = prevDishes.map(dish => 
-            dish._id === updatedDish._id 
-              ? { ...updatedDish, _forceUpdate: Date.now() }
-              : dish
-          );
+          const updatedDishes = prevDishes.map(dish => {
+            if (dish._id === updatedDish._id) {
+              // Check if this dish was recently toggled (within last 2 seconds)
+              const recentToggle = dish._lastToggleTime && (Date.now() - dish._lastToggleTime) < 2000;
+              if (recentToggle) {
+                console.log('Admin: Skipping WebSocket update for recently toggled dish');
+                return dish; // Keep the current state if recently toggled
+              }
+              return { ...updatedDish, _forceUpdate: Date.now() };
+            }
+            return dish;
+          });
           return [...updatedDishes];
         });
         setRefreshKey(prev => prev + 1);
@@ -259,9 +266,15 @@ const AdminMenu = () => {
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       
       // FORCE IMMEDIATE UI UPDATE - After successful API call
+      const updateTimestamp = Date.now();
       setDishes(prevDishes => {
         const updatedDishes = prevDishes.map(d => 
-          d._id === dish._id ? { ...d, availability: newAvailability, _forceUpdate: Date.now() } : d
+          d._id === dish._id ? { 
+            ...d, 
+            availability: newAvailability, 
+            _forceUpdate: updateTimestamp,
+            _lastToggleTime: updateTimestamp // Mark this as a recent toggle
+          } : d
         );
         return [...updatedDishes]; // Create new array reference
       });
