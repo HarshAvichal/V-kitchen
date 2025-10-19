@@ -152,15 +152,24 @@ const Menu = () => {
       if (updatedDish) {
         console.log('Customer: Updating specific dish immediately:', updatedDish);
         console.log('Customer: Dish availability:', updatedDish.availability);
+        console.log('Customer: Dish name:', updatedDish.name);
+        
         // Updating specific dish immediately
         setDishes(prevDishes => {
           const updatedDishes = prevDishes.map(dish => {
             if (dish._id === updatedDish._id) {
               console.log('Customer: Found dish to update:', dish.name, 'Old availability:', dish.availability, 'New availability:', updatedDish.availability);
-              return { ...updatedDish, _forceUpdate: Date.now() };
+              // Force a complete update with the new data
+              return { 
+                ...updatedDish, 
+                _forceUpdate: Date.now(),
+                // Ensure availability is properly set
+                availability: updatedDish.availability !== undefined ? updatedDish.availability : dish.availability
+              };
             }
             return dish;
           });
+          console.log('Customer: Updated dishes array:', updatedDishes.map(d => ({ name: d.name, availability: d.availability })));
           return [...updatedDishes];
         });
         setRefreshKey(prev => prev + 1);
@@ -168,11 +177,11 @@ const Menu = () => {
       }
     }
     
-    // Handle dish creation
+    // Handle dish creation (separate from the above)
     if (data.action === 'created' || data.updateType === 'dish-added') {
       const newDish = data.dish || data.data;
       if (newDish) {
-        // Adding new dish immediately
+        console.log('Customer: Adding new dish:', newDish.name);
         setDishes(prevDishes => {
           const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
           return updatedDishes;
@@ -186,7 +195,7 @@ const Menu = () => {
     if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
       const deletedDishId = data.dish?._id || data.data?.id;
       if (deletedDishId) {
-        // Removing deleted dish immediately
+        console.log('Customer: Removing deleted dish:', deletedDishId);
         setDishes(prevDishes => {
           const updatedDishes = prevDishes.filter(dish => dish._id !== deletedDishId);
           return [...updatedDishes];
@@ -196,11 +205,8 @@ const Menu = () => {
       }
     }
     
-    // Fallback: If no specific update was handled, refresh from server after a short delay
-    console.log('Customer: No specific update handled, refreshing from server');
-    setTimeout(() => {
-      fetchDishes(true, filters, pagination);
-    }, 100);
+    // Note: We rely on immediate UI updates above for better performance
+    // Only refresh from server if no specific update was handled
   };
 
   // Use menu updates hook
