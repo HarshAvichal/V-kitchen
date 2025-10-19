@@ -157,10 +157,11 @@ export const dishesAPI = {
   getDishes: async (params = {}, forceRefresh = false) => {
     const cacheKey = getCacheKey('/dishes', params);
     
-    // If force refresh is requested, skip cache
+    // If force refresh is requested, skip cache completely
     if (forceRefresh) {
+      console.log('Force refreshing dishes - bypassing cache');
       const response = await api.get('/dishes', { params });
-      setCachedData(cacheKey, response);
+      // Don't cache when force refreshing - always get fresh data
       return response;
     }
     
