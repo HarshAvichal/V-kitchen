@@ -865,6 +865,10 @@ const testEmailConfiguration = async (req, res) => {
 const sendTestEmail = async (req, res) => {
   try {
     console.log('🧪 Sending test email...');
+    console.log('🧪 Environment check:');
+    console.log('🧪 EMAIL_USER:', process.env.EMAIL_USER || 'NOT SET');
+    console.log('🧪 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+    console.log('🧪 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'NOT SET');
     
     const transporter = createTransporter();
     
@@ -877,22 +881,47 @@ const sendTestEmail = async (req, res) => {
         <p>This is a test email from V-Kitchen backend.</p>
         <p>Time: ${new Date().toISOString()}</p>
         <p>If you receive this, the email service is working correctly!</p>
+        <p>Environment Variables:</p>
+        <ul>
+          <li>EMAIL_USER: ${process.env.EMAIL_USER || 'NOT SET'}</li>
+          <li>EMAIL_PASS: ${process.env.EMAIL_PASS ? 'SET' : 'NOT SET'}</li>
+          <li>ADMIN_EMAIL: ${process.env.ADMIN_EMAIL || 'NOT SET'}</li>
+        </ul>
       `
     };
 
+    console.log('🧪 Sending to:', mailOptions.to);
+    console.log('🧪 From:', mailOptions.from);
+    
     await transporter.sendMail(mailOptions);
     console.log('✅ Test email sent successfully');
     
     res.json({
       success: true,
-      message: 'Test email sent successfully'
+      message: 'Test email sent successfully',
+      details: {
+        to: mailOptions.to,
+        from: mailOptions.from,
+        envCheck: {
+          EMAIL_USER: process.env.EMAIL_USER || 'NOT SET',
+          EMAIL_PASS: process.env.EMAIL_PASS ? 'SET' : 'NOT SET',
+          ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'NOT SET'
+        }
+      }
     });
   } catch (error) {
     console.error('❌ Error sending test email:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to send test email',
-      error: error.message
+      error: error.message,
+      details: {
+        envCheck: {
+          EMAIL_USER: process.env.EMAIL_USER || 'NOT SET',
+          EMAIL_PASS: process.env.EMAIL_PASS ? 'SET' : 'NOT SET',
+          ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'NOT SET'
+        }
+      }
     });
   }
 };
