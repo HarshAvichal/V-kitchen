@@ -50,7 +50,9 @@ const AdminMenu = () => {
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
       console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
+      console.log('Admin: Setting dishes state with:', response.data.data);
       setDishes(response.data.data);
+      console.log('Admin: Dishes state updated');
     } catch (error) {
       console.error('Error fetching dishes:', error);
       toast.error('Failed to load dishes');
@@ -180,7 +182,9 @@ const AdminMenu = () => {
       setDishToDelete(null);
       
       // Immediately refresh from server to get updated data
+      console.log('Admin: About to refresh dishes after delete');
       await fetchDishes(true, filters);
+      console.log('Admin: Dishes refreshed after delete');
     } catch (error) {
       console.error('Error deleting dish:', error);
       console.error('Error details:', error.response?.data);
@@ -211,7 +215,9 @@ const AdminMenu = () => {
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       
       // Immediately refresh from server to get updated data
+      console.log('Admin: About to refresh dishes after toggle');
       await fetchDishes(true, filters);
+      console.log('Admin: Dishes refreshed after toggle');
     } catch (error) {
       console.error('Error updating dish:', error);
       console.error('Error details:', error.response?.data);
