@@ -17,8 +17,8 @@ import toast from 'react-hot-toast';
 const AdminMenu = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [dishes, setDishes] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [categories, setCategories] = useState(['Beverages', 'Breakfast & Snacks', 'Lunch', 'Dinner']);
+  const [tags, setTags] = useState(['popular', 'spicy', 'vegetarian', 'non-vegetarian', 'mild']);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingDish, setEditingDish] = useState(null);
@@ -79,31 +79,9 @@ const AdminMenu = () => {
     }
   };
 
-  // Fetch categories function
-  const fetchCategories = async () => {
-    try {
-      const response = await dishesAPI.getCategories();
-      setCategories(response.data.data);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  // Fetch tags function
-  const fetchTags = async () => {
-    try {
-      const response = await dishesAPI.getTags();
-      setTags(response.data.data);
-    } catch (error) {
-      console.error('Error fetching tags:', error);
-    }
-  };
-
   // Load initial data
   useEffect(() => {
     fetchDishes(false, filters);
-    fetchCategories();
-    fetchTags();
   }, []);
 
   // Handle filter changes
@@ -132,13 +110,6 @@ const AdminMenu = () => {
   const handleMenuUpdate = (data) => {
     console.log('Admin: Real-time menu update received:', data);
     console.log('Admin: Event type:', data.type, 'Action:', data.action, 'UpdateType:', data.updateType);
-    
-    // Skip real-time update if we just made a change ourselves
-    // This prevents race conditions where our local state gets overwritten
-    if (justUpdated) {
-      console.log('Admin: Skipping real-time update - we just made a change');
-      return;
-    }
     
     // IMMEDIATE UI UPDATE for specific dish changes
     if (data.action === 'updated' || data.updateType === 'dish-updated') {
@@ -247,8 +218,6 @@ const AdminMenu = () => {
     const dishToDeleteId = dishToDelete._id;
     const dishToDeleteName = dishToDelete.name;
     
-    setJustUpdated(true); // Prevent real-time updates from overwriting our changes
-    
     try {
       const response = await dishesAPI.deleteDish(dishToDeleteId);
       toast.success(`"${dishToDeleteName}" deleted successfully`);
@@ -265,18 +234,9 @@ const AdminMenu = () => {
       setShowDeleteModal(false);
       setDishToDelete(null);
       
-      // Also refresh from server to ensure consistency
-      await fetchDishes(true, filters);
-      
-      // Reset the flag after a short delay to allow real-time updates again
-      setTimeout(() => {
-        setJustUpdated(false);
-      }, 2000);
-      
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Failed to delete dish';
       toast.error(`Error: ${errorMessage}`);
-      setJustUpdated(false); // Reset on error
     }
   };
 
@@ -289,7 +249,6 @@ const AdminMenu = () => {
     if (togglingAvailability === dish._id) return; // Prevent double clicks
     
     setTogglingAvailability(dish._id);
-    setJustUpdated(true); // Prevent real-time updates from overwriting our changes
     
     try {
       const newAvailability = !dish.availability;
@@ -311,14 +270,8 @@ const AdminMenu = () => {
       // Force component re-render
       forceRerender();
       
-      // Reset the flag after a short delay to allow real-time updates again
-      setTimeout(() => {
-        setJustUpdated(false);
-      }, 2000);
-      
     } catch (error) {
       toast.error(`Failed to update dish availability: ${error.response?.data?.message || error.message}`);
-      setJustUpdated(false); // Reset on error
     } finally {
       setTogglingAvailability(null);
     }
@@ -466,9 +419,6 @@ const AdminMenu = () => {
       
       // Reset form and close modal
       resetForm();
-      
-      // Also refresh from server to ensure consistency
-      await fetchDishes(true, filters);
     } catch (error) {
       console.error('Error saving dish:', error);
       console.error('Error details:', error.response?.data);
