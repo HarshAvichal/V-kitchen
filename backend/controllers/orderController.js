@@ -538,20 +538,32 @@ const cancelOrder = async (req, res, next) => {
     
     await order.save();
     
-    // Send email notification to admin about order cancellation
-    try {
-      // Ensure order is populated with dish details before sending email
-      const populatedOrder = await Order.findById(order._id).populate({
-        path: 'items.dish',
-        select: 'name description price imageUrl'
-      }).populate('user', 'name email phone');
-      
-      const { sendOrderCancellationNotification } = require('./newsletterController');
-      await sendOrderCancellationNotification(populatedOrder);
-    } catch (emailError) {
-      console.error('Error sending order cancellation email notification:', emailError);
-      // Don't fail the cancellation if email fails
-    }
+    // Send email notification to admin about order cancellation (async, non-blocking)
+    (async () => {
+      try {
+        console.log('📧 Starting order cancellation email notification process for order:', order._id);
+        // Ensure order is populated with dish details before sending email
+        const populatedOrder = await Order.findById(order._id).populate({
+          path: 'items.dish',
+          select: 'name description price imageUrl'
+        }).populate('user', 'name email phone');
+        
+        console.log('📧 Populated order data for cancellation:', {
+          orderId: populatedOrder._id,
+          orderNumber: populatedOrder.orderNumber,
+          customerName: populatedOrder.user?.name,
+          customerEmail: populatedOrder.user?.email,
+          itemsCount: populatedOrder.items?.length
+        });
+        
+        const { sendOrderCancellationNotification } = require('./newsletterController');
+        const emailResult = await sendOrderCancellationNotification(populatedOrder);
+        console.log('📧 Order cancellation email notification result:', emailResult);
+      } catch (emailError) {
+        console.error('❌ Error sending order cancellation email notification:', emailError);
+        // Don't fail the cancellation if email fails
+      }
+    })();
     
     // Create notification for order cancellation
     const Notification = require('../models/Notification');

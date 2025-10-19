@@ -800,6 +800,15 @@ const sendOrderNotification = async (order) => {
 // @access  Private
 const sendOrderCancellationNotification = async (order) => {
   try {
+    console.log('📧 ===== ORDER CANCELLATION EMAIL START =====');
+    console.log('📧 Attempting to send order cancellation notification email...');
+    console.log('📧 Order ID:', order._id);
+    console.log('📧 Order Number:', order.orderNumber);
+    console.log('📧 Customer:', order.user?.name, order.user?.email);
+    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
+    console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
+    
     const transporter = createTransporter();
     
     const mailOptions = {
@@ -809,16 +818,23 @@ const sendOrderCancellationNotification = async (order) => {
       html: createOrderCancellationTemplate(order)
     };
     
-    await transporter.sendMail(mailOptions);
+    console.log('📧 Sending cancellation email to:', mailOptions.to);
+    
+    // Use a promise with timeout to prevent hanging
+    const emailPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email timeout after 10 seconds')), 10000)
+    );
+    
+    await Promise.race([emailPromise, timeoutPromise]);
+    console.log('✅ Order cancellation email sent successfully');
+    console.log('📧 ===== ORDER CANCELLATION EMAIL END =====');
     return true;
   } catch (error) {
-    console.error('❌ Error sending order cancellation notification:', error);
-    console.error('❌ Full error details:', {
-      message: error.message,
-      code: error.code,
-      response: error.response,
-      stack: error.stack
-    });
+    console.error('❌ Error sending order cancellation notification:', error.message);
+    console.error('❌ Full error details:', error);
+    console.log('⚠️ Order cancellation email failed, but order was still cancelled');
+    console.log('📧 ===== ORDER CANCELLATION EMAIL END =====');
     return false;
   }
 };
