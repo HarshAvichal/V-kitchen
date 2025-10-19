@@ -43,6 +43,7 @@ const Menu = () => {
       const params = {
         page: currentPagination.page,
         limit: currentPagination.limit,
+        availability: true, // Only show available dishes to customers
         ...currentFilters
       };
       
