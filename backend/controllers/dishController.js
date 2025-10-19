@@ -184,15 +184,23 @@ const updateDish = async (req, res, next) => {
     }
 
     console.log('✅ Found dish:', dish.name, 'Current data:', dish);
+    console.log('✅ Update data received:', req.body);
     
-    const updateResult = await Dish.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
+    // Update the dish object with new data
+    Object.keys(req.body).forEach(key => {
+      if (req.body[key] !== undefined) {
+        dish[key] = req.body[key];
+      }
     });
-
-    console.log('✅ UPDATE RESULT:', updateResult);
-    console.log('✅ UPDATE RESULT AVAILABILITY:', updateResult.availability);
-    console.log('✅ UPDATE RESULT ISACTIVE:', updateResult.isActive);
+    
+    console.log('✅ Dish after update:', dish);
+    
+    // Save the dish to ensure data persistence
+    const updateResult = await dish.save();
+    
+    console.log('✅ SAVE RESULT:', updateResult);
+    console.log('✅ SAVE RESULT AVAILABILITY:', updateResult.availability);
+    console.log('✅ SAVE RESULT ISACTIVE:', updateResult.isActive);
     console.log('✅ Database save successful for dish:', updateResult.name);
     
     // Verify the update was actually saved by querying the database again
@@ -246,6 +254,11 @@ const deleteDish = async (req, res, next) => {
     
     console.log('✅ DELETE SAVE RESULT:', saveResult);
     console.log('✅ Database soft delete successful for dish:', dish.name, 'isActive:', saveResult.isActive);
+    
+    // Verify the delete was actually saved by querying the database again
+    const verifyDeletedDish = await Dish.findById(req.params.id);
+    console.log('✅ VERIFICATION DELETE RESULT:', verifyDeletedDish);
+    console.log('✅ VERIFICATION DELETE ISACTIVE:', verifyDeletedDish.isActive);
 
     // Emit WebSocket event for real-time updates
     socketService.notifyDishUpdate(dish, 'deleted');
