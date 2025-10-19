@@ -52,7 +52,7 @@ const Menu = () => {
       const params = {
         page: currentPagination.page,
         limit: currentPagination.limit,
-        availability: true, // Only show available dishes to customers
+        // Remove availability filter - show all dishes but handle unavailable state in UI
         ...currentFilters
       };
       
@@ -398,7 +398,7 @@ const Menu = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {dishes.map((dish) => (
-              <div key={`${dish._id}-${dish._forceUpdate || refreshKey}`} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={`${dish._id}-${dish._forceUpdate || refreshKey}`} className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${!dish.availability ? 'opacity-75' : ''}`}>
                 <Link to={`/dish/${dish._id}`}>
                   <div className="relative">
                     <img
@@ -407,8 +407,8 @@ const Menu = () => {
                       className="w-full h-48 object-cover"
                     />
                     {!dish.availability && (
-                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                        <span className="text-white font-semibold">Currently Unavailable</span>
+                      <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                        <span className="text-white font-semibold bg-red-500 px-3 py-1 rounded-full">Currently Unavailable</span>
                       </div>
                     )}
                   </div>
