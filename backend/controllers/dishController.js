@@ -354,6 +354,41 @@ const getTags = async (req, res, next) => {
   }
 };
 
+// @desc    Debug endpoint - Get all dishes without filters
+// @route   GET /api/v1/dishes/debug
+// @access  Private (Admin only)
+const debugDishes = async (req, res, next) => {
+  try {
+    console.log('🔍 DEBUG: Fetching ALL dishes from database');
+    
+    // Get all dishes without any filters
+    const allDishes = await Dish.find({})
+      .select('name description price imageUrl category availability tags preparationTime isActive createdAt updatedAt')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    console.log('🔍 DEBUG: Total dishes in database:', allDishes.length);
+    console.log('🔍 DEBUG: All dishes data:', allDishes.map(d => ({ 
+      id: d._id,
+      name: d.name, 
+      availability: d.availability, 
+      isActive: d.isActive,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt
+    })));
+    
+    res.status(200).json({
+      success: true,
+      message: 'Debug data retrieved successfully',
+      count: allDishes.length,
+      data: allDishes
+    });
+  } catch (error) {
+    console.error('❌ DEBUG ERROR:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getDishes,
   getDish,
@@ -361,5 +396,6 @@ module.exports = {
   updateDish,
   deleteDish,
   getCategories,
-  getTags
+  getTags,
+  debugDishes
 };

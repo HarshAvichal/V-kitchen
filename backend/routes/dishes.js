@@ -8,7 +8,8 @@ const {
   updateDish,
   deleteDish,
   getCategories,
-  getTags
+  getTags,
+  debugDishes
 } = require('../controllers/dishController');
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.get('/tags', getTags);
 router.get('/:id', getDish);
 
 // Protected routes (Admin only)
+router.get('/debug', protect, authorize('admin'), debugDishes);
 router.post('/', protect, authorize('admin'), validateDish, createDish);
 router.put('/:id', protect, authorize('admin'), validateDishUpdate, updateDish);
 router.delete('/:id', protect, authorize('admin'), deleteDish);
