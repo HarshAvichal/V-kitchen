@@ -72,6 +72,7 @@ const Menu = () => {
         id: d._id, 
         name: d.name, 
         price: d.price,
+        preparationTime: d.preparationTime,
         isActive: d.isActive,
         availability: d.availability 
       })));
@@ -158,12 +159,15 @@ const Menu = () => {
         console.log('Customer: Updating specific dish immediately:', updatedDish);
         console.log('Customer: Dish availability:', updatedDish.availability);
         console.log('Customer: Dish name:', updatedDish.name);
+        console.log('Customer: Dish price:', updatedDish.price);
+        console.log('Customer: Dish preparationTime:', updatedDish.preparationTime);
         
         // Updating specific dish immediately
         setDishes(prevDishes => {
           const updatedDishes = prevDishes.map(dish => {
             if (dish._id === updatedDish._id) {
               console.log('Customer: Found dish to update:', dish.name, 'Old availability:', dish.availability, 'New availability:', updatedDish.availability);
+              console.log('Customer: Old preparationTime:', dish.preparationTime, 'New preparationTime:', updatedDish.preparationTime);
               // Force a complete update with the new data
               return { 
                 ...updatedDish, 
