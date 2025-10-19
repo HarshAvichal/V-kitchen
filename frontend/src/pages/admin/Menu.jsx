@@ -60,7 +60,12 @@ const AdminMenu = () => {
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
       console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
-      console.log('Admin: Setting dishes state with:', response.data.data);
+      console.log('Admin: Server returned dishes:', response.data.data.map(d => ({ 
+        id: d._id, 
+        name: d.name, 
+        isActive: d.isActive,
+        availability: d.availability 
+      })));
       
       // Force React to re-render by creating a new array reference
       const newDishes = [...response.data.data];
