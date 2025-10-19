@@ -206,6 +206,7 @@ const AdminMenu = () => {
   const handleToggleAvailability = async (dish) => {
     if (togglingAvailability === dish._id) return; // Prevent double clicks
     
+    console.log('🔴 TOGGLE CLICKED - This should appear in console!');
     setTogglingAvailability(dish._id);
     try {
       const newAvailability = !dish.availability;
