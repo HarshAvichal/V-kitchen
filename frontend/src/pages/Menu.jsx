@@ -132,7 +132,8 @@ const Menu = () => {
 
   // Handle real-time menu updates
   const handleMenuUpdate = (data) => {
-    // Real-time menu update received
+    console.log('Customer: Real-time menu update received:', data);
+    console.log('Customer: Event type:', data.type, 'Action:', data.action, 'UpdateType:', data.updateType);
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
@@ -149,13 +150,17 @@ const Menu = () => {
     if (data.action === 'updated' || data.updateType === 'dish-updated') {
       const updatedDish = data.dish || data.data;
       if (updatedDish) {
+        console.log('Customer: Updating specific dish immediately:', updatedDish);
+        console.log('Customer: Dish availability:', updatedDish.availability);
         // Updating specific dish immediately
         setDishes(prevDishes => {
-          const updatedDishes = prevDishes.map(dish => 
-            dish._id === updatedDish._id 
-              ? { ...updatedDish, _forceUpdate: Date.now() }
-              : dish
-          );
+          const updatedDishes = prevDishes.map(dish => {
+            if (dish._id === updatedDish._id) {
+              console.log('Customer: Found dish to update:', dish.name, 'Old availability:', dish.availability, 'New availability:', updatedDish.availability);
+              return { ...updatedDish, _forceUpdate: Date.now() };
+            }
+            return dish;
+          });
           return [...updatedDishes];
         });
         setRefreshKey(prev => prev + 1);
@@ -191,8 +196,11 @@ const Menu = () => {
       }
     }
     
-    // Force refresh dishes when menu is updated (for other changes)
-    fetchDishes(true, filters, pagination);
+    // Fallback: If no specific update was handled, refresh from server after a short delay
+    console.log('Customer: No specific update handled, refreshing from server');
+    setTimeout(() => {
+      fetchDishes(true, filters, pagination);
+    }, 100);
   };
 
   // Use menu updates hook
