@@ -57,7 +57,6 @@ const AdminMenu = () => {
       const newDishes = [...response.data.data];
       setDishes(newDishes);
       setRefreshKey(prev => prev + 1); // Force component re-render
-      console.log('Admin: Dishes state updated with new array reference and refresh key');
     } catch (error) {
       console.error('Error fetching dishes:', error);
       toast.error('Failed to load dishes');
@@ -88,8 +87,6 @@ const AdminMenu = () => {
 
   // Load initial data
   useEffect(() => {
-    alert('🔴 ADMIN MENU COMPONENT LOADED - This should appear when you visit /admin/menu - FORCE DEPLOY TEST - VERSION 2');
-    console.log('🔴 COMPONENT MOUNTED - AdminMenu component is loaded');
     fetchDishes(false, filters);
     fetchCategories();
     fetchTags();
@@ -180,28 +177,22 @@ const AdminMenu = () => {
     if (!dishToDelete) return;
     
     try {
-      console.log('Deleting dish:', dishToDelete._id);
       const response = await dishesAPI.deleteDish(dishToDelete._id);
-      console.log('Delete response:', response);
       toast.success(`"${dishToDelete.name}" deleted successfully`);
+      
+      // FORCE IMMEDIATE UI UPDATE - Multiple approaches
+      setDishes(prevDishes => {
+        const updatedDishes = prevDishes.filter(d => d._id !== dishToDelete._id);
+        return [...updatedDishes]; // Create new array reference
+      });
+      
+      // Force component re-render
+      setRefreshKey(prev => prev + 1);
       
       setShowDeleteModal(false);
       setDishToDelete(null);
       
-      // Immediately refresh from server to get updated data
-      console.log('Admin: About to refresh dishes after delete');
-      await fetchDishes(true, filters);
-      console.log('Admin: Dishes refreshed after delete');
-      
-      // Force immediate UI update by removing the dish from state
-      setDishes(prevDishes => {
-        const updatedDishes = prevDishes.filter(d => d._id !== dishToDelete._id);
-        console.log('Admin: Removed dish from state, new count:', updatedDishes.length);
-        return updatedDishes;
-      });
     } catch (error) {
-      console.error('Error deleting dish:', error);
-      console.error('Error details:', error.response?.data);
       const errorMessage = error.response?.data?.message || 'Failed to delete dish';
       toast.error(`Error: ${errorMessage}`);
     }
@@ -215,8 +206,6 @@ const AdminMenu = () => {
   const handleToggleAvailability = async (dish) => {
     if (togglingAvailability === dish._id) return; // Prevent double clicks
     
-    alert('🔴 TOGGLE CLICKED - Function is working!');
-    console.log('🔴 TOGGLE CLICKED - This should appear in console!');
     setTogglingAvailability(dish._id);
     try {
       const newAvailability = !dish.availability;
@@ -224,28 +213,21 @@ const AdminMenu = () => {
         availability: newAvailability
       };
       
-      console.log('Updating dish availability:', dish._id, updateData);
       const response = await dishesAPI.updateDish(dish._id, updateData);
-      console.log('Update response:', response);
-      
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       
-      // IMMEDIATE UI UPDATE - Update state right now
+      // FORCE IMMEDIATE UI UPDATE - Multiple approaches
       setDishes(prevDishes => {
         const updatedDishes = prevDishes.map(d => 
           d._id === dish._id ? { ...d, availability: newAvailability } : d
         );
-        console.log('✅ IMMEDIATE STATE UPDATE - Dish availability changed');
-        return updatedDishes;
+        return [...updatedDishes]; // Create new array reference
       });
       
-      // Also refresh from server for consistency
-      console.log('Admin: About to refresh dishes after toggle');
-      await fetchDishes(true, filters);
-      console.log('Admin: Dishes refreshed after toggle');
+      // Force component re-render
+      setRefreshKey(prev => prev + 1);
+      
     } catch (error) {
-      console.error('Error updating dish:', error);
-      console.error('Error details:', error.response?.data);
       toast.error(`Failed to update dish availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setTogglingAvailability(null);
@@ -512,7 +494,6 @@ const AdminMenu = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🔴 BUTTON CLICKED - Eye icon clicked for dish:', dish.name);
                     handleToggleAvailability(dish);
                   }}
                   disabled={togglingAvailability === dish._id}
