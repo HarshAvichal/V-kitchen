@@ -126,6 +126,7 @@ const AdminMenu = () => {
   // Handle real-time menu updates
   const handleMenuUpdate = (data) => {
     console.log('Admin: Real-time menu update received:', data);
+    console.log('Admin: Event type:', data.type, 'Action:', data.action, 'UpdateType:', data.updateType);
     
     // Skip real-time update if we just made a change ourselves
     // This prevents race conditions where our local state gets overwritten
@@ -149,6 +150,20 @@ const AdminMenu = () => {
         });
         setRefreshKey(prev => prev + 1);
         return; // Skip the full refresh for specific updates
+      }
+    }
+    
+    // Handle dish creation
+    if (data.action === 'created' || data.updateType === 'dish-added') {
+      const newDish = data.dish || data.data;
+      if (newDish) {
+        console.log('Admin: Adding new dish immediately:', newDish);
+        setDishes(prevDishes => {
+          const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
+          return updatedDishes;
+        });
+        setRefreshKey(prev => prev + 1);
+        return; // Skip the full refresh for new dishes
       }
     }
     

@@ -159,6 +159,20 @@ const Menu = () => {
       }
     }
     
+    // Handle dish creation
+    if (data.action === 'created' || data.updateType === 'dish-added') {
+      const newDish = data.dish || data.data;
+      if (newDish) {
+        // Adding new dish immediately
+        setDishes(prevDishes => {
+          const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
+          return updatedDishes;
+        });
+        setRefreshKey(prev => prev + 1);
+        return; // Skip the full refresh for new dishes
+      }
+    }
+    
     // Handle dish deletion
     if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
       const deletedDishId = data.dish?._id || data.data?.id;
