@@ -63,6 +63,8 @@ const getDishes = async (req, res, next) => {
     const startIndex = (page - 1) * limit;
 
     const total = await Dish.countDocuments(query);
+    console.log('🔍 GET DISHES QUERY:', query);
+    console.log('🔍 TOTAL DISHES FOUND:', total);
 
     const dishes = await Dish.find(query)
       .select('name description price imageUrl category availability tags preparationTime isActive createdAt')
@@ -162,26 +164,27 @@ const createDish = async (req, res, next) => {
 // @access  Private (Admin only)
 const updateDish = async (req, res, next) => {
   try {
-    console.log('Update dish request:', req.params.id, req.body);
+    console.log('🔄 UPDATE DISH REQUEST:', req.params.id, req.body);
     
     let dish = await Dish.findById(req.params.id);
 
     if (!dish) {
-      console.log('Dish not found:', req.params.id);
+      console.log('❌ Dish not found:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Dish not found'
       });
     }
 
-    console.log('Found dish:', dish.name);
+    console.log('✅ Found dish:', dish.name, 'Current data:', dish);
     
-    dish = await Dish.findByIdAndUpdate(req.params.id, req.body, {
+    const updateResult = await Dish.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
     });
 
-    console.log('Updated dish:', dish);
+    console.log('✅ UPDATE RESULT:', updateResult);
+    console.log('✅ Database save successful for dish:', updateResult.name);
 
     // Emit WebSocket event for real-time updates
     try {
@@ -208,18 +211,26 @@ const updateDish = async (req, res, next) => {
 // @access  Private (Admin only)
 const deleteDish = async (req, res, next) => {
   try {
+    console.log('🗑️ DELETE DISH REQUEST:', req.params.id);
+    
     const dish = await Dish.findById(req.params.id);
 
     if (!dish) {
+      console.log('❌ Dish not found for deletion:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Dish not found'
       });
     }
 
+    console.log('✅ Found dish to delete:', dish.name, 'Current isActive:', dish.isActive);
+    
     // Soft delete - set isActive to false
     dish.isActive = false;
-    await dish.save();
+    const saveResult = await dish.save();
+    
+    console.log('✅ DELETE SAVE RESULT:', saveResult);
+    console.log('✅ Database soft delete successful for dish:', dish.name, 'isActive:', saveResult.isActive);
 
     // Emit WebSocket event for real-time updates
     socketService.notifyDishUpdate(dish, 'deleted');
@@ -230,6 +241,7 @@ const deleteDish = async (req, res, next) => {
       message: 'Dish deleted successfully'
     });
   } catch (error) {
+    console.error('❌ DELETE ERROR:', error);
     next(error);
   }
 };
