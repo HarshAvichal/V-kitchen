@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
 import { 
   ClockIcon, 
@@ -6,11 +6,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { dishesAPI, newsletterAPI } from '../services/api';
 import { useMenuUpdates } from '../hooks/useMenuUpdates';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import OptimizedImage from '../components/OptimizedImage';
 
 const Home = () => {
   console.log('Home component rendering...');
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [popularDishes, setPopularDishes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [displayedDishes, setDisplayedDishes] = useState([]);
@@ -18,6 +21,14 @@ const Home = () => {
   const [nextDishes, setNextDishes] = useState([]);
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
+
+  // Redirect admin users to admin dashboard
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'admin') {
+      console.log('🏠 HOME: Admin user detected, redirecting to admin dashboard');
+      navigate('/admin/dashboard');
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // Function to randomly select 4 dishes from popular dishes
   const getRandomDishes = useCallback((dishes, count = 4) => {

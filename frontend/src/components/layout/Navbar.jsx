@@ -82,17 +82,20 @@ const Navbar = () => {
             {/* Notifications */}
             {isAuthenticated && <NotificationCenter />}
 
-            <Link
-              to="/cart"
-              className="relative text-gray-700 hover:text-orange-500 p-2 rounded-md transition-colors"
-            >
-              <ShoppingCartIcon className="h-6 w-6" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
-            </Link>
+            {/* Only show cart for logged-in customers (not admins) */}
+            {isAuthenticated && user?.role !== 'admin' && (
+              <Link
+                to="/cart"
+                className="relative text-gray-700 hover:text-orange-500 p-2 rounded-md transition-colors"
+              >
+                <ShoppingCartIcon className="h-6 w-6" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {isAuthenticated ? (
               <div className="relative group">
