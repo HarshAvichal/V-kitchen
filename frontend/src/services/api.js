@@ -18,6 +18,9 @@ const api = axios.create({
   baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   },
   timeout: 30000, // 30 second timeout for payment operations
 });
@@ -174,7 +177,13 @@ export const dishesAPI = {
     console.log('🔄 API CALL: Params:', params);
     console.log('🔄 API CALL: Force refresh:', forceRefresh);
     
-    const response = await api.get('/dishes', { params });
+    // Add timestamp to prevent browser caching
+    const cacheBustParams = {
+      ...params,
+      _t: Date.now()
+    };
+    
+    const response = await api.get('/dishes', { params: cacheBustParams });
     console.log('🔄 API CALL: Response received:', response.data);
     console.log('🔄 API CALL: Dishes count:', response.data.data?.length);
     return response;
