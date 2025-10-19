@@ -5,6 +5,7 @@ import {
   HeartIcon
 } from '@heroicons/react/24/outline';
 import { dishesAPI, newsletterAPI } from '../services/api';
+import { useMenuUpdates } from '../hooks/useMenuUpdates';
 import toast from 'react-hot-toast';
 import OptimizedImage from '../components/OptimizedImage';
 
@@ -44,56 +45,114 @@ const Home = () => {
     }
   }, [popularDishes, getRandomDishes, isTransitioning]);
 
-  useEffect(() => {
-    const fetchPopularDishes = async () => {
-      try {
-        setLoading(true);
-        const response = await dishesAPI.getDishes({ tags: 'popular' });
-        setPopularDishes(response.data.data);
-      } catch (error) {
-        console.error('Error fetching popular dishes:', error);
-        // Fallback to hardcoded data if API fails
-        setPopularDishes([
-          {
-            _id: 1,
-            name: 'Chicken Biryani',
-            description: 'Aromatic basmati rice with tender chicken pieces',
-            price: 12.99,
-            imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop',
-            category: 'lunch'
-          },
-          {
-            _id: 2,
-            name: 'Butter Chicken',
-            description: 'Creamy tomato curry with tender chicken pieces',
-            price: 14.99,
-            imageUrl: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
-            category: 'lunch'
-          },
-          {
-            _id: 3,
-            name: 'Masala Dosa',
-            description: 'Crispy crepe filled with spiced potato mixture',
-            price: 6.99,
-            imageUrl: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=300&fit=crop',
-            category: 'breakfast'
-          },
-          {
-            _id: 4,
-            name: 'Paneer Tikka',
-            description: 'Grilled cottage cheese with aromatic spices',
-            price: 9.99,
-            imageUrl: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
-            category: 'snacks'
-          }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPopularDishes();
+  // Fetch popular dishes function
+  const fetchPopularDishes = useCallback(async (forceRefresh = true) => {
+    try {
+      console.log('🏠 HOME: Fetching popular dishes with forceRefresh:', forceRefresh);
+      setLoading(true);
+      const response = await dishesAPI.getDishes({ tags: 'popular' }, forceRefresh);
+      console.log('🏠 HOME: Received popular dishes:', response.data.data.length);
+      setPopularDishes(response.data.data);
+    } catch (error) {
+      console.error('Error fetching popular dishes:', error);
+      // Fallback to hardcoded data if API fails
+      setPopularDishes([
+        {
+          _id: 1,
+          name: 'Chicken Biryani',
+          description: 'Aromatic basmati rice with tender chicken pieces',
+          price: 12.99,
+          imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&h=300&fit=crop',
+          category: 'lunch'
+        },
+        {
+          _id: 2,
+          name: 'Butter Chicken',
+          description: 'Creamy tomato curry with tender chicken pieces',
+          price: 14.99,
+          imageUrl: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=400&h=300&fit=crop',
+          category: 'lunch'
+        },
+        {
+          _id: 3,
+          name: 'Masala Dosa',
+          description: 'Crispy crepe filled with spiced potato mixture',
+          price: 6.99,
+          imageUrl: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=300&fit=crop',
+          category: 'breakfast'
+        },
+        {
+          _id: 4,
+          name: 'Paneer Tikka',
+          description: 'Grilled cottage cheese with aromatic spices',
+          price: 9.99,
+          imageUrl: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=400&h=300&fit=crop',
+          category: 'snacks'
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Load initial data
+  useEffect(() => {
+    fetchPopularDishes(true); // Always force refresh on initial load
+  }, [fetchPopularDishes]);
+
+  // Handle real-time menu updates
+  const handleMenuUpdate = useCallback((data) => {
+    console.log('🏠 HOME: Real-time menu update received:', data);
+    console.log('🏠 HOME: Event type:', data.type, 'Action:', data.action, 'UpdateType:', data.updateType);
+    
+    // Handle dish updates
+    if (data.action === 'updated' || data.updateType === 'dish-updated') {
+      const updatedDish = data.dish || data.data;
+      if (updatedDish) {
+        console.log('🏠 HOME: Updating popular dish:', updatedDish.name);
+        setPopularDishes(prevDishes => {
+          const updatedDishes = prevDishes.map(dish => 
+            dish._id === updatedDish._id 
+              ? { ...updatedDish, _forceUpdate: Date.now() }
+              : dish
+          );
+          return [...updatedDishes];
+        });
+      }
+    }
+    
+    // Handle dish creation
+    if (data.action === 'created' || data.updateType === 'dish-added') {
+      const newDish = data.dish || data.data;
+      if (newDish && newDish.tags?.includes('popular')) {
+        console.log('🏠 HOME: Adding new popular dish:', newDish.name);
+        setPopularDishes(prevDishes => {
+          const dishExists = prevDishes.some(dish => dish._id === newDish._id);
+          if (dishExists) {
+            console.log('🏠 HOME: Dish already exists, skipping duplicate addition');
+            return prevDishes;
+          }
+          const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
+          return updatedDishes;
+        });
+      }
+    }
+    
+    // Handle dish deletion
+    if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
+      const deletedDishId = data.dish?._id || data.data?.id;
+      if (deletedDishId) {
+        console.log('🏠 HOME: Removing deleted dish:', deletedDishId);
+        setPopularDishes(prevDishes => {
+          const updatedDishes = prevDishes.filter(dish => dish._id !== deletedDishId);
+          return updatedDishes;
+        });
+      }
+    }
+  }, []);
+
+  // Use menu updates hook
+  useMenuUpdates(handleMenuUpdate);
 
   // Generate initial slide when popular dishes are loaded
   useEffect(() => {
