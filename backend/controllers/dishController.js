@@ -167,7 +167,6 @@ const createDish = async (req, res, next) => {
     console.log('✅ VERIFICATION CREATE NAME:', verifyDish?.name);
 
     // Emit WebSocket event for real-time updates
-    socketService.notifyDishUpdate(savedDish, 'created');
     socketService.notifyMenuUpdate('dish-added', savedDish);
 
     res.status(201).json({
