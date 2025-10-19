@@ -10,7 +10,7 @@ const createTransporter = () => {
   
   // Try multiple email configurations for better reliability
   const configs = [
-    // Configuration 1: Gmail with TLS
+    // Configuration 1: Gmail with TLS (optimized for Render)
     {
       host: 'smtp.gmail.com',
       port: 587,
@@ -19,16 +19,18 @@ const createTransporter = () => {
         user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
         pass: (process.env.EMAIL_PASS || 'your-app-password').replace(/\s/g, '')
       },
-      connectionTimeout: 20000,
-      greetingTimeout: 10000,
-      socketTimeout: 20000,
+      connectionTimeout: 10000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000,
       pool: false,
       tls: {
         rejectUnauthorized: false,
         ciphers: 'TLSv1.2'
-      }
+      },
+      debug: true,
+      logger: true
     },
-    // Configuration 2: Gmail with SSL
+    // Configuration 2: Gmail with SSL (optimized for Render)
     {
       host: 'smtp.gmail.com',
       port: 465,
@@ -37,14 +39,16 @@ const createTransporter = () => {
         user: process.env.EMAIL_USER || 'studynotion.pro@gmail.com',
         pass: (process.env.EMAIL_PASS || 'your-app-password').replace(/\s/g, '')
       },
-      connectionTimeout: 20000,
-      greetingTimeout: 10000,
-      socketTimeout: 20000,
+      connectionTimeout: 10000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000,
       pool: false,
       tls: {
         rejectUnauthorized: false,
-        ciphers: 'SSLv3'
-      }
+        ciphers: 'TLSv1.2'
+      },
+      debug: true,
+      logger: true
     }
   ];
   
@@ -52,6 +56,17 @@ const createTransporter = () => {
   let transporter = nodemailer.createTransport(configs[0]);
   
   console.log('📧 Email transporter created with fallback configuration');
+  
+  // Add error handling for connection issues
+  transporter.verify((error, success) => {
+    if (error) {
+      console.log('📧 Primary SMTP config failed, trying fallback...', error.message);
+      // Try the second configuration if first fails
+      transporter = nodemailer.createTransport(configs[1]);
+    } else {
+      console.log('📧 Primary SMTP config verified successfully');
+    }
+  });
   
   return transporter;
 };
