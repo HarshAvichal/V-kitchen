@@ -213,6 +213,7 @@ const AdminMenu = () => {
   const handleToggleAvailability = async (dish) => {
     if (togglingAvailability === dish._id) return; // Prevent double clicks
     
+    alert('🔴 TOGGLE CLICKED - Function is working!');
     console.log('🔴 TOGGLE CLICKED - This should appear in console!');
     setTogglingAvailability(dish._id);
     try {
@@ -227,19 +228,19 @@ const AdminMenu = () => {
       
       toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
       
-      // Immediately refresh from server to get updated data
-      console.log('Admin: About to refresh dishes after toggle');
-      await fetchDishes(true, filters);
-      console.log('Admin: Dishes refreshed after toggle');
-      
-      // Force immediate UI update by updating the specific dish in state
+      // IMMEDIATE UI UPDATE - Update state right now
       setDishes(prevDishes => {
         const updatedDishes = prevDishes.map(d => 
           d._id === dish._id ? { ...d, availability: newAvailability } : d
         );
-        console.log('Admin: Updated dish in state:', updatedDishes.find(d => d._id === dish._id));
+        console.log('✅ IMMEDIATE STATE UPDATE - Dish availability changed');
         return updatedDishes;
       });
+      
+      // Also refresh from server for consistency
+      console.log('Admin: About to refresh dishes after toggle');
+      await fetchDishes(true, filters);
+      console.log('Admin: Dishes refreshed after toggle');
     } catch (error) {
       console.error('Error updating dish:', error);
       console.error('Error details:', error.response?.data);
