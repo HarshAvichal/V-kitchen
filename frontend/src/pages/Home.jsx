@@ -29,8 +29,10 @@ const Home = () => {
 
   // Function to generate new slide with sliding animation
   const generateNewSlide = useCallback(() => {
+    console.log('🏠 HOME: generateNewSlide called, popularDishes.length:', popularDishes.length, 'isTransitioning:', isTransitioning);
     if (popularDishes.length > 0 && !isTransitioning) {
       const randomDishes = getRandomDishes(popularDishes, 4);
+      console.log('🏠 HOME: Generated new random dishes:', randomDishes.map(d => d.name));
       
       // Start transition
       setIsTransitioning(true);
@@ -38,6 +40,7 @@ const Home = () => {
       
       // After animation completes, update displayed dishes
       setTimeout(() => {
+        console.log('🏠 HOME: Animation complete, updating displayed dishes');
         setDisplayedDishes(randomDishes);
         setNextDishes([]);
         setIsTransitioning(false);
@@ -164,11 +167,13 @@ const Home = () => {
 
   // Auto-play functionality
   useEffect(() => {
-    if (popularDishes.length <= 4) return;
+    if (popularDishes.length < 4) return; // Allow animation with 4 or more dishes
 
+    console.log('🏠 HOME: Starting auto-play animation with', popularDishes.length, 'dishes');
     const interval = setInterval(() => {
+      console.log('🏠 HOME: Auto-play triggering new slide');
       generateNewSlide();
-    }, 1000); // Change slide every 15 seconds
+    }, 15000); // Change slide every 15 seconds
 
     return () => clearInterval(interval);
   }, [popularDishes.length, generateNewSlide]);
