@@ -35,6 +35,7 @@ const AdminMenu = () => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch dishes function - completely independent
   const fetchDishes = async (forceRefresh = false, currentFilters = filters) => {
@@ -51,8 +52,12 @@ const AdminMenu = () => {
       const response = await dishesAPI.getDishes(params, forceRefresh);
       console.log('Admin: fetchDishes response:', response.data.data.length, 'dishes');
       console.log('Admin: Setting dishes state with:', response.data.data);
-      setDishes(response.data.data);
-      console.log('Admin: Dishes state updated');
+      
+      // Force React to re-render by creating a new array reference
+      const newDishes = [...response.data.data];
+      setDishes(newDishes);
+      setRefreshKey(prev => prev + 1); // Force component re-render
+      console.log('Admin: Dishes state updated with new array reference and refresh key');
     } catch (error) {
       console.error('Error fetching dishes:', error);
       toast.error('Failed to load dishes');
@@ -473,7 +478,7 @@ const AdminMenu = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div key={refreshKey} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {dishes.map((dish) => (
           <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div className="relative">
