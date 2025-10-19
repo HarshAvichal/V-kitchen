@@ -37,10 +37,13 @@ const AdminMenu = () => {
   const [togglingAvailability, setTogglingAvailability] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   
-  // Memoized dishes list to force re-renders
-  const memoizedDishes = useMemo(() => {
-    return dishes.map(dish => ({ ...dish, _refreshKey: refreshKey }));
-  }, [dishes, refreshKey]);
+  // Force re-render by creating completely new objects
+  const forceRerender = useCallback(() => {
+    setDishes(prevDishes => {
+      return prevDishes.map(dish => ({ ...dish, _forceUpdate: Date.now() }));
+    });
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   // Fetch dishes function - completely independent
   const fetchDishes = async (forceRefresh = false, currentFilters = filters) => {
@@ -185,33 +188,22 @@ const AdminMenu = () => {
     const dishToDeleteName = dishToDelete.name;
     
     try {
-      // UPDATE STATE FIRST - Before API call
+      const response = await dishesAPI.deleteDish(dishToDeleteId);
+      toast.success(`"${dishToDeleteName}" deleted successfully`);
+      
+      // FORCE IMMEDIATE UI UPDATE - After successful API call
       setDishes(prevDishes => {
         const updatedDishes = prevDishes.filter(d => d._id !== dishToDeleteId);
         return [...updatedDishes]; // Create new array reference
       });
       
-      // Force immediate re-render
-      setRefreshKey(prev => prev + 1);
+      // Force component re-render
+      forceRerender();
       
-      // Close modal immediately
       setShowDeleteModal(false);
       setDishToDelete(null);
       
-      const response = await dishesAPI.deleteDish(dishToDeleteId);
-      toast.success(`"${dishToDeleteName}" deleted successfully`);
-      
-      // Refresh from server to ensure consistency
-      await fetchDishes(true, filters);
-      
     } catch (error) {
-      // Revert state on error - add the dish back
-      setDishes(prevDishes => {
-        const revertedDishes = [...prevDishes, dishToDelete];
-        return revertedDishes;
-      });
-      setRefreshKey(prev => prev + 1);
-      
       const errorMessage = error.response?.data?.message || 'Failed to delete dish';
       toast.error(`Error: ${errorMessage}`);
     }
@@ -232,33 +224,21 @@ const AdminMenu = () => {
         availability: newAvailability
       };
       
-      // UPDATE STATE FIRST - Before API call
+      const response = await dishesAPI.updateDish(dish._id, updateData);
+      toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
+      
+      // FORCE IMMEDIATE UI UPDATE - After successful API call
       setDishes(prevDishes => {
         const updatedDishes = prevDishes.map(d => 
-          d._id === dish._id ? { ...d, availability: newAvailability } : d
+          d._id === dish._id ? { ...d, availability: newAvailability, _forceUpdate: Date.now() } : d
         );
         return [...updatedDishes]; // Create new array reference
       });
       
-      // Force immediate re-render
-      setRefreshKey(prev => prev + 1);
-      
-      const response = await dishesAPI.updateDish(dish._id, updateData);
-      toast.success(`Dish ${newAvailability ? 'shown' : 'hidden'} successfully`);
-      
-      // Refresh from server to ensure consistency
-      await fetchDishes(true, filters);
+      // Force component re-render
+      forceRerender();
       
     } catch (error) {
-      // Revert state on error
-      setDishes(prevDishes => {
-        const revertedDishes = prevDishes.map(d => 
-          d._id === dish._id ? { ...d, availability: !newAvailability } : d
-        );
-        return [...revertedDishes];
-      });
-      setRefreshKey(prev => prev + 1);
-      
       toast.error(`Failed to update dish availability: ${error.response?.data?.message || error.message}`);
     } finally {
       setTogglingAvailability(null);
@@ -512,7 +492,7 @@ const AdminMenu = () => {
         </div>
       ) : (
         <div key={refreshKey} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {memoizedDishes.map((dish) => (
+          {dishes.map((dish) => (
           <div key={dish._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             <div className="relative">
               <img
