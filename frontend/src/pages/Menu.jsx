@@ -63,6 +63,12 @@ const Menu = () => {
 
       const response = await dishesAPI.getDishes(params, forceRefresh);
       
+      console.log('🔍 FETCHED DISHES FROM SERVER:', response.data.data.map(d => ({ 
+        id: d._id, 
+        name: d.name, 
+        availability: d.availability 
+      })));
+      
       // AGGRESSIVE: Completely recreate the dishes array with new objects
       const newDishes = response.data.data.map((dish, index) => ({
         ...dish,
@@ -126,7 +132,12 @@ const Menu = () => {
 
   // Handle real-time menu updates
   const handleMenuUpdate = (data) => {
-    console.log('Customer: Real-time menu update received:', data);
+    console.log('🔄 Customer: Real-time menu update received:', data);
+    console.log('🔄 Current dishes before update:', dishes.map(d => ({ 
+      id: d._id, 
+      name: d.name, 
+      availability: d.availability 
+    })));
     
     // Show toast notification for new dishes
     if (data.action === 'created' || data.updateType === 'dish-added') {
