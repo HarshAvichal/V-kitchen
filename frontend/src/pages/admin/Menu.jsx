@@ -154,7 +154,7 @@ const AdminMenu = () => {
     
     // Handle dish deletion
     if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
-      const deletedDishId = data.dish?._id || data.data?._id;
+      const deletedDishId = data.dish?._id || data.data?.id;
       if (deletedDishId) {
         console.log('Admin: Removing deleted dish immediately:', deletedDishId);
         setDishes(prevDishes => {

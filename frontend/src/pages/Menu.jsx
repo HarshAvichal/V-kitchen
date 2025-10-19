@@ -161,7 +161,7 @@ const Menu = () => {
     
     // Handle dish deletion
     if (data.action === 'deleted' || data.updateType === 'dish-deleted') {
-      const deletedDishId = data.dish?._id || data.data?._id;
+      const deletedDishId = data.dish?._id || data.data?.id;
       if (deletedDishId) {
         // Removing deleted dish immediately
         setDishes(prevDishes => {
