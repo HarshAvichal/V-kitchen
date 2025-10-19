@@ -260,6 +260,9 @@ const AdminMenu = () => {
       setShowDeleteModal(false);
       setDishToDelete(null);
       
+      // Also refresh from server to ensure consistency
+      await fetchDishes(true, filters);
+      
       // Reset the flag after a short delay to allow real-time updates again
       setTimeout(() => {
         setJustUpdated(false);
@@ -431,17 +434,35 @@ const AdminMenu = () => {
         const response = await dishesAPI.updateDish(editingDish._id, dishData);
         console.log('Update response:', response);
         toast.success('Dish updated successfully');
+        
+        // IMMEDIATE UI UPDATE - Update admin side immediately
+        setDishes(prevDishes => {
+          const updatedDishes = prevDishes.map(dish => 
+            dish._id === editingDish._id 
+              ? { ...response.data.data, _forceUpdate: Date.now() }
+              : dish
+          );
+          return [...updatedDishes];
+        });
+        setRefreshKey(prev => prev + 1);
       } else {
         console.log('Creating new dish');
         const response = await dishesAPI.createDish(dishData);
         console.log('Create response:', response);
         toast.success('Dish added successfully');
+        
+        // IMMEDIATE UI UPDATE - Add new dish to admin side immediately
+        setDishes(prevDishes => {
+          const updatedDishes = [...prevDishes, { ...response.data.data, _forceUpdate: Date.now() }];
+          return updatedDishes;
+        });
+        setRefreshKey(prev => prev + 1);
       }
       
       // Reset form and close modal
       resetForm();
       
-      // Immediately refresh from server to get updated data
+      // Also refresh from server to ensure consistency
       await fetchDishes(true, filters);
     } catch (error) {
       console.error('Error saving dish:', error);
