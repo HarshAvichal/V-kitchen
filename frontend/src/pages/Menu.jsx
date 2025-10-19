@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 const Menu = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [dishes, setDishes] = useState([]);
-  const [categories, setCategories] = useState(['Beverages', 'Breakfast & Snacks', 'Lunch', 'Dinner', 'Dessert']);
+  const [categories, setCategories] = useState(['beverages', 'breakfast', 'lunch', 'dinner', 'dessert']);
   const [tags, setTags] = useState(['popular', 'spicy', 'vegetarian', 'non-vegetarian', 'mild', 'dessert']);
   const [loading, setLoading] = useState(true);
   
