@@ -173,7 +173,7 @@ const Home = () => {
     const interval = setInterval(() => {
       console.log('🏠 HOME: Auto-play triggering new slide');
       generateNewSlide();
-    }, 15000); // Change slide every 15 seconds
+    }, 1000); // Change slide every 1 second
 
     return () => clearInterval(interval);
   }, [popularDishes.length, generateNewSlide]);
