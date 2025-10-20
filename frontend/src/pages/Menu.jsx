@@ -127,7 +127,8 @@ const Menu = () => {
 
   // Load initial data
   useEffect(() => {
-    fetchDishes(true, filters, pagination); // Always force refresh on initial load to get fresh data
+    // Don't force refresh on initial load - use cache to speed up cold starts
+    fetchDishes(false, filters, pagination);
   }, []);
 
   // Handle filter changes

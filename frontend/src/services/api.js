@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/
 // Enhanced cache implementation with different durations for different data types
 const cache = new Map();
 const CACHE_DURATIONS = {
-  dishes: 5 * 60 * 1000, // 5 minutes for dishes (optimized for performance)
+  dishes: 10 * 60 * 1000, // 10 minutes for dishes (longer cache for cold start optimization)
   categories: 30 * 60 * 1000, // 30 minutes for categories
   tags: 30 * 60 * 1000, // 30 minutes for tags
   orders: 2 * 60 * 1000, // 2 minutes for orders (more dynamic)
