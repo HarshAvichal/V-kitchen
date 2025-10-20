@@ -27,6 +27,11 @@ const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/payments');
 
 const app = express();
+
+// Start keep alive service to prevent cold starts (Render free tier)
+if (process.env.NODE_ENV === 'production') {
+  require('./keepAlive');
+}
 const server = http.createServer(app);
 
 // Connect to MongoDB
