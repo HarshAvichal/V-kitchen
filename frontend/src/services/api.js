@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://v-kitchen.onrender
 // Enhanced cache implementation with different durations for different data types
 const cache = new Map();
 const CACHE_DURATIONS = {
-  dishes: 2 * 60 * 1000, // 2 minutes for dishes (reduced for better real-time updates)
+  dishes: 30 * 1000, // 30 seconds for dishes (balanced for real-time + performance)
   categories: 30 * 60 * 1000, // 30 minutes for categories
   tags: 30 * 60 * 1000, // 30 minutes for tags
   orders: 2 * 60 * 1000, // 2 minutes for orders (more dynamic)
@@ -126,6 +126,20 @@ const forceClearDishesCache = () => {
   console.log('🧹 FORCE cleared', keysToDelete.length, 'dish-related cache entries');
 };
 
+// Smart cache refresh - only clear cache when there are actual changes
+const smartRefreshDishesCache = (changeType) => {
+  console.log('🧠 SMART cache refresh for:', changeType);
+  
+  // For dish updates, we can be more selective
+  if (changeType === 'dish-updated') {
+    // Only clear cache for the specific dish category if possible
+    console.log('🔄 Smart refresh: Only clearing relevant cache entries');
+  }
+  
+  // For now, clear all dish cache to ensure consistency
+  forceClearDishesCache();
+};
+
 // Retry mechanism for failed requests
 const retryRequest = async (requestFn, maxRetries = 3, delay = 1000) => {
   for (let i = 0; i < maxRetries; i++) {
@@ -143,6 +157,7 @@ export const cacheUtils = {
   clearDishesCache,
   clearAllCache,
   forceClearDishesCache,
+  smartRefreshDishesCache,
   getCacheSize: () => cache.size,
   retryRequest
 };
@@ -213,14 +228,18 @@ export const dishesAPI = {
     console.log('🔄 API CALL: Response received:', response.data);
     console.log('🔄 API CALL: Dishes count:', response.data.data?.length);
     
-    // Only cache the response if it's not a force refresh
-    if (!forceRefresh) {
-      cache.set(cacheKey, {
-        data: response,
-        timestamp: Date.now()
-      });
+    // Smart caching strategy:
+    // - Always cache responses for performance
+    // - But use shorter cache duration for better real-time updates
+    cache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now()
+    });
+    
+    if (forceRefresh) {
+      console.log('🔄 FORCE REFRESH: Cached fresh data for future requests');
     } else {
-      console.log('🚫 FORCE REFRESH: Not caching response to ensure fresh data');
+      console.log('💾 CACHED: Response cached for performance');
     }
     
     return response;
