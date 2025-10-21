@@ -167,6 +167,14 @@ const AdminMenu = () => {
             console.log('Admin: Dish already exists, skipping duplicate addition');
             return prevDishes;
           }
+          
+          // Check if this dish was recently created via API (within last 3 seconds)
+          const recentCreation = newDish._recentCreation && (Date.now() - newDish._recentCreation) < 3000;
+          if (recentCreation) {
+            console.log('Admin: Skipping WebSocket update for recently created dish via API');
+            return prevDishes;
+          }
+          
           const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
           return updatedDishes;
         });
@@ -449,7 +457,11 @@ const AdminMenu = () => {
         
         // IMMEDIATE UI UPDATE - Add new dish to admin side immediately
         setDishes(prevDishes => {
-          const updatedDishes = [...prevDishes, { ...response.data.data, _forceUpdate: Date.now() }];
+          const updatedDishes = [...prevDishes, { 
+            ...response.data.data, 
+            _forceUpdate: Date.now(),
+            _recentCreation: Date.now() // Mark as recently created to prevent WebSocket duplicate
+          }];
           return updatedDishes;
         });
         setRefreshKey(prev => prev + 1);

@@ -210,6 +210,14 @@ const Menu = () => {
             console.log('Customer: Dish already exists, skipping duplicate addition');
             return prevDishes;
           }
+          
+          // Check if this dish was recently created via API (within last 3 seconds)
+          const recentCreation = newDish._recentCreation && (Date.now() - newDish._recentCreation) < 3000;
+          if (recentCreation) {
+            console.log('Customer: Skipping WebSocket update for recently created dish via API');
+            return prevDishes;
+          }
+          
           const updatedDishes = [...prevDishes, { ...newDish, _forceUpdate: Date.now() }];
           return updatedDishes;
         });
