@@ -20,7 +20,7 @@ export const useWebSocket = () => {
 
     // Initialize WebSocket connection with optimized settings
     // Use the same base URL as the API, but without the /api/v1 suffix
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://v-kitchen.onrender.com/api/v1';
     const wsUrl = apiBaseUrl.replace('/api/v1', '');
     console.log('WebSocket connecting to:', wsUrl);
     const socket = io(import.meta.env.VITE_WS_URL || wsUrl, {

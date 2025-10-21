@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://v-kitchen.onrender.com/api/v1';
 
 // Enhanced cache implementation with different durations for different data types
 const cache = new Map();
