@@ -98,10 +98,11 @@ const getDishes = async (req, res, next) => {
       };
     }
 
-    // Set cache headers for better performance
+    // Set cache headers to prevent caching for real-time updates
     res.set({
-      'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
-      'ETag': `"${Date.now()}"` // Simple ETag for cache validation
+      'Cache-Control': 'no-cache, no-store, must-revalidate', // Prevent all caching
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
 
     res.status(200).json({
@@ -132,6 +133,13 @@ const getDish = async (req, res, next) => {
         message: 'Dish not found'
       });
     }
+
+    // Set cache headers to prevent caching for real-time updates
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate', // Prevent all caching
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
 
     res.status(200).json({
       success: true,
@@ -329,6 +337,13 @@ const getCategories = async (req, res, next) => {
   try {
     const categories = await Dish.distinct('category', { isActive: true });
     
+    // Set cache headers to prevent caching for real-time updates
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate', // Prevent all caching
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     res.status(200).json({
       success: true,
       data: categories
@@ -344,6 +359,13 @@ const getCategories = async (req, res, next) => {
 const getTags = async (req, res, next) => {
   try {
     const tags = await Dish.distinct('tags', { isActive: true });
+    
+    // Set cache headers to prevent caching for real-time updates
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate', // Prevent all caching
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     
     res.status(200).json({
       success: true,
