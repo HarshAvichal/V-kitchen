@@ -127,9 +127,22 @@ const Menu = () => {
 
   // Load initial data
   useEffect(() => {
-    // Don't force refresh on initial load - use cache to speed up cold starts
-    fetchDishes(false, filters, pagination);
+    // Always force refresh on initial load to ensure fresh data
+    fetchDishes(true, filters, pagination);
   }, []);
+
+  // Handle page visibility change to refresh data when user returns to tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Customer: Page became visible, refreshing dishes...');
+        fetchDishes(true, filters, pagination);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [filters, pagination]);
 
   // Handle filter changes
   useEffect(() => {

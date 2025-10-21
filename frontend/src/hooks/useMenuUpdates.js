@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useWebSocket } from './useWebSocket';
+import { cacheUtils } from '../services/api';
 import toast from 'react-hot-toast';
 
 export const useMenuUpdates = (onMenuUpdate) => {
@@ -10,10 +11,14 @@ export const useMenuUpdates = (onMenuUpdate) => {
     if (!socket || !onMenuUpdate) return;
 
     const handleDishUpdate = (data) => {
+      console.log('🔄 WebSocket: Dish update received, clearing cache...');
+      cacheUtils.forceClearDishesCache(); // Clear cache on WebSocket updates
       onMenuUpdate(data);
     };
 
     const handleMenuUpdate = (data) => {
+      console.log('🔄 WebSocket: Menu update received, clearing cache...');
+      cacheUtils.forceClearDishesCache(); // Clear cache on WebSocket updates
       onMenuUpdate(data);
     };
 

@@ -84,9 +84,22 @@ const AdminMenu = () => {
 
   // Load initial data
   useEffect(() => {
-    // Don't force refresh on initial load - use cache to speed up cold starts
-    fetchDishes(false, filters);
+    // Always force refresh on initial load to ensure fresh data
+    fetchDishes(true, filters);
   }, []);
+
+  // Handle page visibility change to refresh data when user returns to tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Admin: Page became visible, refreshing dishes...');
+        fetchDishes(true, filters);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [filters]);
 
   // Handle filter changes
   useEffect(() => {

@@ -6,7 +6,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/
 // Enhanced cache implementation with different durations for different data types
 const cache = new Map();
 const CACHE_DURATIONS = {
-  dishes: 10 * 60 * 1000, // 10 minutes for dishes (longer cache for cold start optimization)
+  dishes: 2 * 60 * 1000, // 2 minutes for dishes (reduced for better real-time updates)
   categories: 30 * 60 * 1000, // 30 minutes for categories
   tags: 30 * 60 * 1000, // 30 minutes for tags
   orders: 2 * 60 * 1000, // 2 minutes for orders (more dynamic)
@@ -95,16 +95,35 @@ const clearCache = (pattern = null) => {
 
 // Clear cache for dishes-related data
 const clearDishesCache = () => {
+  console.log('🧹 Clearing dishes cache...');
+  const keysToDelete = [];
   for (const [key] of cache) {
-    if (key.includes('/dishes') || key.includes('/categories') || key.includes('/tags')) {
-      cache.delete(key);
+    if (key.includes('/dishes') || key.includes('/categories') || key.includes('/tags') || key.includes('dishes_')) {
+      keysToDelete.push(key);
     }
   }
+  keysToDelete.forEach(key => cache.delete(key));
+  console.log('🧹 Cleared', keysToDelete.length, 'cache entries');
 };
 
 // Clear all cache
 const clearAllCache = () => {
+  console.log('🧹 Clearing ALL cache...');
   cache.clear();
+  console.log('🧹 All cache cleared');
+};
+
+// Force clear all dish-related caches
+const forceClearDishesCache = () => {
+  console.log('🧹 FORCE clearing all dish-related caches...');
+  const keysToDelete = [];
+  for (const [key] of cache) {
+    if (key.includes('dishes') || key.includes('categories') || key.includes('tags')) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach(key => cache.delete(key));
+  console.log('🧹 FORCE cleared', keysToDelete.length, 'dish-related cache entries');
 };
 
 // Retry mechanism for failed requests
@@ -123,6 +142,7 @@ const retryRequest = async (requestFn, maxRetries = 3, delay = 1000) => {
 export const cacheUtils = {
   clearDishesCache,
   clearAllCache,
+  forceClearDishesCache,
   getCacheSize: () => cache.size,
   retryRequest
 };
@@ -169,7 +189,10 @@ export const authAPI = {
 export const dishesAPI = {
   // GET /api/v1/dishes
   getDishes: async (params = {}, forceRefresh = false) => {
-    const cacheKey = `dishes_${JSON.stringify(params)}`;
+    // Add a cache busting parameter for force refresh
+    const cacheKey = forceRefresh 
+      ? `dishes_${JSON.stringify(params)}_${Date.now()}` 
+      : `dishes_${JSON.stringify(params)}`;
     
     // Check cache first unless force refresh is requested
     if (!forceRefresh && cache.has(cacheKey)) {
@@ -238,9 +261,8 @@ export const dishesAPI = {
   createDish: async (dishData) => {
     const response = await api.post('/dishes', dishData);
     console.log('Dish created, clearing cache...');
-    clearDishesCache(); // Clear cache after creating
-    // Also clear all cache to ensure fresh data everywhere
-    clearAllCache();
+    forceClearDishesCache(); // Force clear all dish-related caches
+    clearAllCache(); // Also clear all cache to ensure fresh data everywhere
     console.log('Cache cleared, cache size:', cache.size);
     return response;
   },
@@ -248,18 +270,16 @@ export const dishesAPI = {
   // PUT /api/v1/dishes/:id (Admin only)
   updateDish: async (id, dishData) => {
     const response = await api.put(`/dishes/${id}`, dishData);
-    clearDishesCache(); // Clear cache after updating
-    // Also clear all cache to ensure fresh data everywhere
-    clearAllCache();
+    forceClearDishesCache(); // Force clear all dish-related caches
+    clearAllCache(); // Also clear all cache to ensure fresh data everywhere
     return response;
   },
   
   // DELETE /api/v1/dishes/:id (Admin only)
   deleteDish: async (id) => {
     const response = await api.delete(`/dishes/${id}`);
-    clearDishesCache(); // Clear cache after deleting
-    // Also clear all cache to ensure fresh data everywhere
-    clearAllCache();
+    forceClearDishesCache(); // Force clear all dish-related caches
+    clearAllCache(); // Also clear all cache to ensure fresh data everywhere
     return response;
   },
 };
