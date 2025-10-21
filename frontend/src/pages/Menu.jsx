@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { dishesAPI } from '../services/api';
+import { dishesAPI, cacheUtils } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useMenuUpdates } from '../hooks/useMenuUpdates';
 import { 
@@ -127,7 +127,9 @@ const Menu = () => {
 
   // Load initial data
   useEffect(() => {
-    // Always force refresh on initial load to ensure fresh data
+    // Clear cache first, then force refresh on initial load to ensure fresh data
+    console.log('🧹 Customer: Clearing cache on page load');
+    cacheUtils.forceClearDishesCache();
     fetchDishes(true, filters, pagination);
   }, []);
 

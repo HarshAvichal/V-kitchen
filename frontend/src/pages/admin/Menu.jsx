@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { dishesAPI } from '../../services/api';
+import { dishesAPI, cacheUtils } from '../../services/api';
 import { useMenuUpdates } from '../../hooks/useMenuUpdates';
 import { 
   PlusIcon,
@@ -84,7 +84,9 @@ const AdminMenu = () => {
 
   // Load initial data
   useEffect(() => {
-    // Always force refresh on initial load to ensure fresh data
+    // Clear cache first, then force refresh on initial load to ensure fresh data
+    console.log('🧹 Admin: Clearing cache on page load');
+    cacheUtils.forceClearDishesCache();
     fetchDishes(true, filters);
   }, []);
 

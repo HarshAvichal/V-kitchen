@@ -189,10 +189,7 @@ export const authAPI = {
 export const dishesAPI = {
   // GET /api/v1/dishes
   getDishes: async (params = {}, forceRefresh = false) => {
-    // Add a cache busting parameter for force refresh
-    const cacheKey = forceRefresh 
-      ? `dishes_${JSON.stringify(params)}_${Date.now()}` 
-      : `dishes_${JSON.stringify(params)}`;
+    const cacheKey = `dishes_${JSON.stringify(params)}`;
     
     // Check cache first unless force refresh is requested
     if (!forceRefresh && cache.has(cacheKey)) {
@@ -216,11 +213,15 @@ export const dishesAPI = {
     console.log('🔄 API CALL: Response received:', response.data);
     console.log('🔄 API CALL: Dishes count:', response.data.data?.length);
     
-    // Cache the response
-    cache.set(cacheKey, {
-      data: response,
-      timestamp: Date.now()
-    });
+    // Only cache the response if it's not a force refresh
+    if (!forceRefresh) {
+      cache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+    } else {
+      console.log('🚫 FORCE REFRESH: Not caching response to ensure fresh data');
+    }
     
     return response;
   },
