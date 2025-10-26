@@ -419,4 +419,19 @@ export const healthAPI = {
   checkHealth: () => api.get('/health'),
 };
 
+// Store API
+export const storeAPI = {
+  // GET /api/v1/store/status (Public)
+  getStoreStatus: () => api.get('/store/status'),
+  
+  // GET /api/v1/store/admin/status (Admin only)
+  getAdminStoreStatus: () => api.get('/store/admin/status'),
+  
+  // PUT /api/v1/store/admin/toggle (Admin only)
+  toggleStoreStatus: (statusData) => api.put('/store/admin/toggle', statusData),
+  
+  // PUT /api/v1/store/admin/message (Admin only)
+  updateClosedMessage: (message) => api.put('/store/admin/message', { closedMessage: message }),
+};
+
 export default api;

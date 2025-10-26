@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { ordersAPI } from '../services/api';
+import { ordersAPI, storeAPI } from '../services/api';
 import PaymentForm from '../components/PaymentForm';
 import { formatPhoneNumber, validatePhoneNumber, cleanPhoneNumber } from '../utils/phoneUtils';
 import { 
@@ -14,7 +14,8 @@ import {
   BuildingOfficeIcon,
   TagIcon,
   PlusIcon,
-  StarIcon
+  StarIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -29,6 +30,7 @@ const Checkout = () => {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true, closedMessage: '' });
 
   // Redirect to menu if cart is empty
   useEffect(() => {
@@ -42,6 +44,25 @@ const Checkout = () => {
   useEffect(() => {
     loadSavedAddresses();
   }, []);
+
+  // Check store status
+  useEffect(() => {
+    const checkStoreStatus = async () => {
+      try {
+        const response = await storeAPI.getStoreStatus();
+        const status = response.data.data;
+        setStoreStatus(status);
+        
+        if (!status.isOpen) {
+          toast.error(status.closedMessage || 'Store is currently closed');
+          setTimeout(() => navigate('/menu'), 2000);
+        }
+      } catch (error) {
+        console.error('Error checking store status:', error);
+      }
+    };
+    checkStoreStatus();
+  }, [navigate]);
 
   const loadSavedAddresses = async () => {
     const result = await getDeliveryAddresses();

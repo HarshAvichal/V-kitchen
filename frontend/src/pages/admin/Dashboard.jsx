@@ -1,22 +1,50 @@
 import { useState, useEffect } from 'react';
-import { adminAPI } from '../../services/api';
+import { adminAPI, storeAPI } from '../../services/api';
 import { 
   ChartBarIcon,
   ShoppingBagIcon,
   UsersIcon,
   CurrencyDollarIcon,
   ClockIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true });
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    fetchStoreStatus();
   }, []);
+
+  const fetchStoreStatus = async () => {
+    try {
+      const response = await storeAPI.getAdminStoreStatus();
+      setStoreStatus(response.data.data);
+    } catch (error) {
+      console.error('Error fetching store status:', error);
+    }
+  };
+
+  const toggleStore = async () => {
+    try {
+      setUpdatingStatus(true);
+      const newStatus = !storeStatus.isOpen;
+      await storeAPI.toggleStoreStatus({ isOpen: newStatus });
+      setStoreStatus({ ...storeStatus, isOpen: newStatus });
+      toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
+    } catch (error) {
+      console.error('Error toggling store status:', error);
+      toast.error('Failed to update store status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -107,6 +135,40 @@ const Dashboard = () => {
           <p className="text-lg text-gray-600 mt-2">
             Overview of your V Kitchen business
           </p>
+        </div>
+
+        {/* Store Status Toggle */}
+        <div className="mb-6 bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              {storeStatus.isOpen ? (
+                <div className="p-3 rounded-lg bg-green-500">
+                  <CheckCircleIcon className="h-6 w-6 text-white" />
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-red-500">
+                  <XCircleIcon className="h-6 w-6 text-white" />
+                </div>
+              )}
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Store Status</p>
+                <p className={`text-xl font-bold ${storeStatus.isOpen ? 'text-green-600' : 'text-red-600'}`}>
+                  {storeStatus.isOpen ? 'OPEN' : 'CLOSED'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={toggleStore}
+              disabled={updatingStatus}
+              className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
+                storeStatus.isOpen
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-green-500 text-white hover:bg-green-600'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {updatingStatus ? 'Updating...' : storeStatus.isOpen ? 'Close Store' : 'Open Store'}
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}

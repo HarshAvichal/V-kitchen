@@ -2,6 +2,7 @@ require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Order = require('../models/Order');
 const Dish = require('../models/Dish');
+const StoreSettings = require('../models/StoreSettings');
 const EventLog = require('../models/EventLog');
 const socketService = require('../services/socketService');
 const { createPaymentNotification } = require('./notificationController');
@@ -83,6 +84,15 @@ const createPaymentIntentForOrder = async (req, res) => {
   try {
     const { orderData } = req.body;
     const userId = req.user.id;
+
+    // Check if store is open
+    const storeStatus = await StoreSettings.getCurrentStatus();
+    if (!storeStatus.isOpen) {
+      return res.status(400).json({
+        success: false,
+        message: storeStatus.closedMessage || 'We are currently closed. Please check back later!'
+      });
+    }
 
     // Validate and calculate total amount
     let totalAmount = 0;

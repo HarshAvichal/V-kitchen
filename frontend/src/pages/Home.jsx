@@ -2,9 +2,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback } from 'react';
 import { 
   ClockIcon, 
-  HeartIcon
+  HeartIcon,
+  XCircleIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { dishesAPI, newsletterAPI } from '../services/api';
+import { dishesAPI, newsletterAPI, storeAPI } from '../services/api';
 import { useMenuUpdates } from '../hooks/useMenuUpdates';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -21,6 +23,20 @@ const Home = () => {
   const [nextDishes, setNextDishes] = useState([]);
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true, closedMessage: '' });
+
+  // Fetch store status
+  useEffect(() => {
+    const fetchStoreStatus = async () => {
+      try {
+        const response = await storeAPI.getStoreStatus();
+        setStoreStatus(response.data.data);
+      } catch (error) {
+        console.error('Error fetching store status:', error);
+      }
+    };
+    fetchStoreStatus();
+  }, []);
 
   // Redirect admin users to admin dashboard (prevent flash)
   useEffect(() => {
@@ -256,6 +272,18 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
+      {/* Store Status Banner */}
+      {!storeStatus.isOpen && (
+        <div className="bg-red-600 text-white py-3">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-center">
+              <XCircleIcon className="h-5 w-5 mr-2" />
+              <p className="text-sm font-medium">{storeStatus.closedMessage || 'We are currently closed. Please check back later!'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">

@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Dish = require('../models/Dish');
+const StoreSettings = require('../models/StoreSettings');
 const { createOrderTimelineNotification } = require('./notificationController');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
@@ -9,6 +10,15 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const createOrder = async (req, res, next) => {
   try {
     const { items, deliveryType, deliveryAddress, contactPhone, specialInstructions } = req.body;
+
+    // Check if store is open
+    const storeStatus = await StoreSettings.getCurrentStatus();
+    if (!storeStatus.isOpen) {
+      return res.status(400).json({
+        success: false,
+        message: storeStatus.closedMessage || 'We are currently closed. Please check back later!'
+      });
+    }
 
     // Validate and calculate total amount - OPTIMIZED: Single query for all dishes
     let totalAmount = 0;
