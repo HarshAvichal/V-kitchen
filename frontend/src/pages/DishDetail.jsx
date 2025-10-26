@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { dishesAPI } from '../services/api';
+import { dishesAPI, storeAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { 
   ClockIcon,
   PlusIcon,
@@ -19,10 +20,40 @@ const DishDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true });
+  const { on, off } = useWebSocket();
 
   useEffect(() => {
     fetchDish();
+    fetchStoreStatus();
   }, [id]);
+
+  // Fetch store status
+  const fetchStoreStatus = async () => {
+    try {
+      const response = await storeAPI.getStoreStatus();
+      setStoreStatus(response.data.data);
+    } catch (error) {
+      console.error('Error fetching store status:', error);
+    }
+  };
+
+  // Listen to WebSocket for real-time store status updates
+  useEffect(() => {
+    const handleStoreStatusUpdate = (data) => {
+      console.log('📋 DISH DETAIL: Store status updated via WebSocket:', data);
+      setStoreStatus({
+        isOpen: data.isOpen,
+        closedMessage: data.closedMessage
+      });
+    };
+
+    on('store-status-updated', handleStoreStatusUpdate);
+
+    return () => {
+      off('store-status-updated', handleStoreStatusUpdate);
+    };
+  }, [on, off]);
 
   const fetchDish = async () => {
     try {
@@ -46,6 +77,12 @@ const DishDetail = () => {
   };
 
   const handleAddToCart = async () => {
+    // Check if store is closed
+    if (!storeStatus.isOpen) {
+      toast.error(storeStatus.closedMessage || 'Store is currently closed');
+      return;
+    }
+
     if (!dish.availability) {
       toast.error('This dish is currently unavailable');
       return;
@@ -201,10 +238,10 @@ const DishDetail = () => {
               
               <button
                 onClick={handleAddToCart}
-                disabled={!dish.availability || isAddingToCart}
+                disabled={!dish.availability || isAddingToCart || !storeStatus.isOpen}
                 className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                {isAddingToCart ? 'Adding...' : dish.availability ? 'Add to Cart' : 'Unavailable'}
+                {isAddingToCart ? 'Adding...' : !storeStatus.isOpen ? 'Store Closed' : dish.availability ? 'Add to Cart' : 'Unavailable'}
               </button>
             </div>
 

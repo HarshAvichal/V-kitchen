@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { dishesAPI, cacheUtils } from '../services/api';
+import { dishesAPI, cacheUtils, storeAPI } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useMenuUpdates } from '../hooks/useMenuUpdates';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon,
@@ -44,6 +45,8 @@ const Menu = () => {
   }, []);
 
   const { addToCart } = useCart();
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true });
+  const { on, off } = useWebSocket();
 
   // Fetch dishes function - completely independent
   const fetchDishes = async (forceRefresh = false, currentFilters = filters, currentPagination = pagination) => {
@@ -334,7 +337,43 @@ const Menu = () => {
     updateURLParams(newFilters, newPagination);
   };
 
+  // Fetch store status
+  useEffect(() => {
+    const fetchStoreStatus = async () => {
+      try {
+        const response = await storeAPI.getStoreStatus();
+        setStoreStatus(response.data.data);
+      } catch (error) {
+        console.error('Error fetching store status:', error);
+      }
+    };
+    fetchStoreStatus();
+  }, []);
+
+  // Listen to WebSocket for real-time store status updates
+  useEffect(() => {
+    const handleStoreStatusUpdate = (data) => {
+      console.log('📋 MENU: Store status updated via WebSocket:', data);
+      setStoreStatus({
+        isOpen: data.isOpen,
+        closedMessage: data.closedMessage
+      });
+    };
+
+    on('store-status-updated', handleStoreStatusUpdate);
+
+    return () => {
+      off('store-status-updated', handleStoreStatusUpdate);
+    };
+  }, [on, off]);
+
   const handleAddToCart = (dish) => {
+    // Check if store is closed
+    if (!storeStatus.isOpen) {
+      toast.error(storeStatus.closedMessage || 'Store is currently closed');
+      return;
+    }
+
     addToCart(dish, 1);
     toast.success(`${dish.name} added to cart!`);
   };
@@ -546,14 +585,14 @@ const Menu = () => {
                   
                   <button
                     onClick={() => handleAddToCart(dish)}
-                    disabled={!dish.availability}
+                    disabled={!dish.availability || !storeStatus.isOpen}
                     className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                      dish.availability
+                      dish.availability && storeStatus.isOpen
                         ? 'bg-orange-500 text-white hover:bg-orange-600'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {dish.availability ? 'Add to Cart' : 'Unavailable'}
+                    {!storeStatus.isOpen ? 'Store Closed' : dish.availability ? 'Add to Cart' : 'Unavailable'}
                   </button>
                 </div>
               </div>
