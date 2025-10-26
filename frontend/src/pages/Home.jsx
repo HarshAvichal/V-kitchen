@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { dishesAPI, newsletterAPI, storeAPI } from '../services/api';
 import { useMenuUpdates } from '../hooks/useMenuUpdates';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import OptimizedImage from '../components/OptimizedImage';
@@ -24,6 +25,7 @@ const Home = () => {
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [storeStatus, setStoreStatus] = useState({ isOpen: true, closedMessage: '' });
+  const { on, off } = useWebSocket();
 
   // Fetch store status
   useEffect(() => {
@@ -37,6 +39,30 @@ const Home = () => {
     };
     fetchStoreStatus();
   }, []);
+
+  // Listen to WebSocket for real-time store status updates
+  useEffect(() => {
+    const handleStoreStatusUpdate = (data) => {
+      console.log('🏠 HOME: Store status updated via WebSocket:', data);
+      setStoreStatus({
+        isOpen: data.isOpen,
+        closedMessage: data.closedMessage
+      });
+      
+      // Show toast notification
+      if (data.isOpen) {
+        toast.success('Store is now OPEN! 🎉');
+      } else {
+        toast.error('Store is now CLOSED');
+      }
+    };
+
+    on('store-status-updated', handleStoreStatusUpdate);
+
+    return () => {
+      off('store-status-updated', handleStoreStatusUpdate);
+    };
+  }, [on, off]);
 
   // Redirect admin users to admin dashboard (prevent flash)
   useEffect(() => {

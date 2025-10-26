@@ -296,6 +296,17 @@ class SocketService {
       timestamp: new Date().toISOString()
     });
   }
+
+  // Notify all users about store status changes
+  notifyStoreStatusUpdate(storeStatus) {
+    
+    this.broadcastToAll('store-status-updated', {
+      type: 'store-status-updated',
+      isOpen: storeStatus.isOpen,
+      closedMessage: storeStatus.closedMessage,
+      timestamp: new Date().toISOString()
+    });
+  }
 }
 
 // Singleton instance

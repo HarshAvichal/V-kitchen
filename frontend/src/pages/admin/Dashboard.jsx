@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminAPI, storeAPI } from '../../services/api';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import { 
   ChartBarIcon,
   ShoppingBagIcon,
@@ -16,11 +17,32 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [storeStatus, setStoreStatus] = useState({ isOpen: true });
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const { on, off } = useWebSocket();
 
   useEffect(() => {
     fetchStats();
     fetchStoreStatus();
   }, []);
+
+  // Listen to WebSocket for real-time store status updates
+  useEffect(() => {
+    const handleStoreStatusUpdate = (data) => {
+      console.log('📊 ADMIN DASHBOARD: Store status updated via WebSocket:', data);
+      setStoreStatus({
+        isOpen: data.isOpen,
+        closedMessage: data.closedMessage
+      });
+      
+      // No toast notification here - we don't want to spam admins
+      // The status will update in the UI automatically
+    };
+
+    on('store-status-updated', handleStoreStatusUpdate);
+
+    return () => {
+      off('store-status-updated', handleStoreStatusUpdate);
+    };
+  }, [on, off]);
 
   const fetchStoreStatus = async () => {
     try {

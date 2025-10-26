@@ -1,4 +1,5 @@
 const StoreSettings = require('../models/StoreSettings');
+const socketService = require('../services/socketService');
 
 // @desc    Get current store status
 // @route   GET /api/v1/store/status
@@ -68,6 +69,12 @@ const toggleStoreStatus = async (req, res, next) => {
     // Get updated status
     const updatedStatus = await StoreSettings.findById(status._id);
     
+    // Emit WebSocket event to all users
+    socketService.notifyStoreStatusUpdate({
+      isOpen: updatedStatus.isOpen,
+      closedMessage: updatedStatus.closedMessage
+    });
+    
     res.status(200).json({
       success: true,
       message: `Store is now ${updatedStatus.isOpen ? 'OPEN' : 'CLOSED'}`,
@@ -105,6 +112,12 @@ const updateClosedMessage = async (req, res, next) => {
       status.lastUpdatedBy = req.user.id;
       await status.save();
     }
+    
+    // Emit WebSocket event to all users
+    socketService.notifyStoreStatusUpdate({
+      isOpen: status.isOpen,
+      closedMessage: status.closedMessage
+    });
     
     res.status(200).json({
       success: true,
