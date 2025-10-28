@@ -4,10 +4,6 @@ const crypto = require('crypto');
 
 // Create reusable transporter object using SMTP transport
 const createTransporter = () => {
-  console.log('📧 Creating email transporter...');
-  console.log('📧 EMAIL_USER:', process.env.EMAIL_USER);
-  console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-  
   // Try multiple email configurations for better reliability
   const configs = [
     // Configuration 1: Gmail with TLS (optimized for Render)
@@ -55,16 +51,11 @@ const createTransporter = () => {
   // Try the first configuration
   let transporter = nodemailer.createTransport(configs[0]);
   
-  console.log('📧 Email transporter created with fallback configuration');
-  
   // Add error handling for connection issues
   transporter.verify((error, success) => {
     if (error) {
-      console.log('📧 Primary SMTP config failed, trying fallback...', error.message);
       // Try the second configuration if first fails
       transporter = nodemailer.createTransport(configs[1]);
-    } else {
-      console.log('📧 Primary SMTP config verified successfully');
     }
   });
   
@@ -641,7 +632,6 @@ const subscribeToNewsletter = async (req, res, next) => {
 
       await transporter.sendMail(mailOptions);
     } catch (emailError) {
-      console.error('Error sending welcome email:', emailError);
       // Don't fail the subscription if email fails
     }
 
@@ -651,7 +641,6 @@ const subscribeToNewsletter = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Newsletter subscription error:', error);
     next(error);
   }
 };
@@ -684,7 +673,6 @@ const unsubscribeFromNewsletter = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Newsletter unsubscribe error:', error);
     next(error);
   }
 };
@@ -709,7 +697,6 @@ const getNewsletterStats = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Newsletter stats error:', error);
     next(error);
   }
 };
@@ -719,22 +706,12 @@ const getNewsletterStats = async (req, res, next) => {
 // @access  Private (Admin only)
 const sendOrderNotification = async (order) => {
   try {
-    console.log('📧 ===== ORDER NOTIFICATION EMAIL START =====');
-    console.log('📧 Attempting to send order notification email...');
-    console.log('📧 Order ID:', order._id);
-    console.log('📧 Order Number:', order.orderNumber);
-    console.log('📧 Customer:', order.user?.name, order.user?.email);
-    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-    console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
-    
     // Try to send email with retry mechanism
     const maxRetries = 3;
     let lastError = null;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`📧 Email attempt ${attempt}/${maxRetries}`);
         
         const transporter = createTransporter();
         
@@ -745,8 +722,6 @@ const sendOrderNotification = async (order) => {
           html: createOrderNotificationTemplate(order)
         };
 
-        console.log('📧 Sending email to:', mailOptions.to);
-        
         // Use a shorter timeout for each attempt
         const emailPromise = transporter.sendMail(mailOptions);
         const timeoutPromise = new Promise((_, reject) => 
@@ -754,43 +729,21 @@ const sendOrderNotification = async (order) => {
         );
         
         await Promise.race([emailPromise, timeoutPromise]);
-        console.log('✅ Order notification email sent successfully');
-        console.log('📧 ===== ORDER NOTIFICATION EMAIL END =====');
         return true;
         
       } catch (error) {
         lastError = error;
-        console.error(`❌ Email attempt ${attempt} failed:`, error.message);
         
         if (attempt < maxRetries) {
-          console.log(`🔄 Retrying in ${attempt * 2} seconds...`);
           await new Promise(resolve => setTimeout(resolve, attempt * 2000));
         }
       }
     }
     
-    // If all attempts failed, log but don't fail the order
-    console.error('❌ All email attempts failed:', lastError);
-    console.log('⚠️ Order notification email failed after all retries, but order was still processed');
-    
-    // Fallback: Log order details to console for manual tracking
-    console.log('📋 ===== ORDER DETAILS (EMAIL FAILED) =====');
-    console.log('📋 Order Number:', order.orderNumber);
-    console.log('📋 Customer:', order.user?.name, `(${order.user?.email})`);
-    console.log('📋 Phone:', order.contactPhone);
-    console.log('📋 Total Amount: $' + order.totalAmount);
-    console.log('📋 Items:', order.items?.map(item => `${item.quantity}x ${item.dish?.name}`).join(', '));
-    console.log('📋 Delivery Type:', order.deliveryType);
-    if (order.deliveryAddress) {
-      console.log('📋 Address:', `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state} ${order.deliveryAddress.zipCode}`);
-    }
-    console.log('📋 ===== END ORDER DETAILS =====');
-    console.log('📧 ===== ORDER NOTIFICATION EMAIL END =====');
+    // If all attempts failed, return false but don't fail the order
     return false;
     
   } catch (error) {
-    console.error('❌ Error in sendOrderNotification:', error.message);
-    console.log('⚠️ Order notification email failed, but order was still processed');
     return false;
   }
 };
@@ -800,15 +753,6 @@ const sendOrderNotification = async (order) => {
 // @access  Private
 const sendOrderCancellationNotification = async (order) => {
   try {
-    console.log('📧 ===== ORDER CANCELLATION EMAIL START =====');
-    console.log('📧 Attempting to send order cancellation notification email...');
-    console.log('📧 Order ID:', order._id);
-    console.log('📧 Order Number:', order.orderNumber);
-    console.log('📧 Customer:', order.user?.name, order.user?.email);
-    console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-    console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-    console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'studynotion.pro@gmail.com');
-    
     const transporter = createTransporter();
     
     const mailOptions = {
@@ -818,8 +762,6 @@ const sendOrderCancellationNotification = async (order) => {
       html: createOrderCancellationTemplate(order)
     };
     
-    console.log('📧 Sending cancellation email to:', mailOptions.to);
-    
     // Use a promise with timeout to prevent hanging
     const emailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
@@ -827,14 +769,8 @@ const sendOrderCancellationNotification = async (order) => {
     );
     
     await Promise.race([emailPromise, timeoutPromise]);
-    console.log('✅ Order cancellation email sent successfully');
-    console.log('📧 ===== ORDER CANCELLATION EMAIL END =====');
     return true;
   } catch (error) {
-    console.error('❌ Error sending order cancellation notification:', error.message);
-    console.error('❌ Full error details:', error);
-    console.log('⚠️ Order cancellation email failed, but order was still cancelled');
-    console.log('📧 ===== ORDER CANCELLATION EMAIL END =====');
     return false;
   }
 };
@@ -848,12 +784,6 @@ const sendOrderStatusUpdateNotification = async (order, status) => {
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`📧 Attempting to send status update email (attempt ${attempt}/${maxRetries})...`);
-      console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-      console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-      console.log('📧 Customer email:', order.user?.email);
-      console.log('📧 Status:', status);
-      
       const transporter = createTransporter();
       
       const mailOptions = {
@@ -865,22 +795,16 @@ const sendOrderStatusUpdateNotification = async (order, status) => {
         html: createOrderStatusUpdateTemplate(order, status)
       };
 
-      console.log('📧 Sending status update email to:', mailOptions.to);
       await transporter.sendMail(mailOptions);
-      console.log('✅ Status update email sent successfully');
       return true;
     } catch (error) {
       lastError = error;
-      console.error(`❌ Error sending status update email (attempt ${attempt}/${maxRetries}):`, error.message);
       
       if (attempt < maxRetries) {
-        console.log(`🔄 Retrying in ${attempt * 2} seconds...`);
         await new Promise(resolve => setTimeout(resolve, attempt * 2000));
       }
     }
   }
-  
-  console.error('❌ Failed to send status update email after all retries:', lastError);
   return false;
 };
 
@@ -909,7 +833,6 @@ const testEmailConfiguration = async (req, res) => {
       transporterTest = true;
     } catch (error) {
       errorMessage = error.message;
-      console.error('📧 Transporter creation failed:', error);
     }
     
     res.json({
@@ -936,12 +859,6 @@ const testEmailConfiguration = async (req, res) => {
 // @access  Public (for testing)
 const sendTestEmail = async (req, res) => {
   try {
-    console.log('🧪 Sending test email...');
-    console.log('🧪 Environment check:');
-    console.log('🧪 EMAIL_USER:', process.env.EMAIL_USER || 'NOT SET');
-    console.log('🧪 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-    console.log('🧪 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'NOT SET');
-    
     const transporter = createTransporter();
     
     const mailOptions = {
@@ -962,11 +879,7 @@ const sendTestEmail = async (req, res) => {
       `
     };
 
-    console.log('🧪 Sending to:', mailOptions.to);
-    console.log('🧪 From:', mailOptions.from);
-    
     await transporter.sendMail(mailOptions);
-    console.log('✅ Test email sent successfully');
     
     res.json({
       success: true,
@@ -982,7 +895,6 @@ const sendTestEmail = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error sending test email:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to send test email',

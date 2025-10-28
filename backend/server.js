@@ -6,12 +6,10 @@ const compression = require('compression');
 const http = require('http');
 require('dotenv').config();
 
-// Debug environment variables
-console.log('🔧 Environment Variables Check:');
-console.log('📧 EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
-console.log('📧 EMAIL_PASS:', process.env.EMAIL_PASS ? 'SET' : 'NOT SET');
-console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL || 'NOT SET');
-console.log('🌐 NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
+// Only log critical startup info in production
+if (process.env.NODE_ENV === 'production') {
+  console.log('🔧 Starting production server...');
+}
 
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
@@ -83,34 +81,25 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('🌐 CORS request from origin:', origin);
-    console.log('🌐 Allowed origins:', allowedOrigins);
-    console.log('🌐 NODE_ENV:', process.env.NODE_ENV);
-    
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
-      console.log('✅ Allowing request with no origin');
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
-      console.log('✅ Origin allowed (in list):', origin);
       return callback(null, true);
     }
     
     // In production, allow any Vercel domain
     if (process.env.NODE_ENV === 'production' && origin.includes('vercel.app')) {
-      console.log('✅ Vercel domain allowed:', origin);
       return callback(null, true);
     }
     
     // Additional check for any vercel.app subdomain
     if (origin && origin.includes('vercel.app')) {
-      console.log('✅ Any Vercel domain allowed:', origin);
       return callback(null, true);
     }
     
-    console.log('❌ Origin blocked:', origin);
     const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
     return callback(new Error(msg), false);
   },

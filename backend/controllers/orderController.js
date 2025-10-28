@@ -133,9 +133,7 @@ const confirmPayment = async (req, res, next) => {
       // Create notifications in parallel (non-blocking)
       Promise.all([
         // Order placed notification
-        createOrderTimelineNotification(order._id, 'order-placed').catch(err => 
-          console.error('Error creating order placed notification:', err)
-        ),
+        createOrderTimelineNotification(order._id, 'order-placed').catch(() => {}),
         
         // Payment success notification
         (async () => {
@@ -143,40 +141,27 @@ const confirmPayment = async (req, res, next) => {
             const { createPaymentNotification } = require('./notificationController');
             await createPaymentNotification(order._id, 'payment-success');
           } catch (err) {
-            console.error('Error creating payment success notification:', err);
+            // Silent error handling
           }
         })(),
         
         // Email notification (async, non-blocking)
         (async () => {
           try {
-            console.log('📧 Starting email notification process for order:', order._id);
             const populatedOrder = await Order.findById(order._id).populate({
               path: 'items.dish',
               select: 'name description price imageUrl'
             }).populate('user', 'name email phone');
             
-            console.log('📧 Populated order data:', {
-              orderId: populatedOrder._id,
-              orderNumber: populatedOrder.orderNumber,
-              customerName: populatedOrder.user?.name,
-              customerEmail: populatedOrder.user?.email,
-              itemsCount: populatedOrder.items?.length
-            });
-            
             const { sendOrderNotification } = require('./newsletterController');
-            const emailResult = await sendOrderNotification(populatedOrder);
-            console.log('📧 Email notification result:', emailResult);
+            await sendOrderNotification(populatedOrder);
           } catch (err) {
-            console.error('❌ Error sending order email notification:', err);
+            // Silent error handling
           }
         })()
-      ]).catch(err => {
-        console.error('Error in parallel notification processing:', err);
-      });
+      ]).catch(() => {});
       
     } catch (error) {
-      console.error('❌ Error in confirmPayment:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to confirm payment',
@@ -391,9 +376,8 @@ const updateOrderStatus = async (req, res, next) => {
             
             const { sendOrderStatusUpdateNotification } = require('./newsletterController');
             await sendOrderStatusUpdateNotification(populatedOrder, status);
-            console.log(`✅ Email notification sent for order ${order.orderNumber} status: ${status}`);
           } catch (emailError) {
-            console.error('❌ Error sending order status update email notification:', emailError);
+            // Silent error handling
           }
         }
       })(),
@@ -440,15 +424,12 @@ const updateOrderStatus = async (req, res, next) => {
 
           if (notificationType) {
             await createOrderTimelineNotification(order._id, notificationType, additionalData);
-            console.log(`✅ Notification created for order ${order.orderNumber} status: ${status}`);
           }
         } catch (notificationError) {
-          console.error('❌ Error creating order status notification:', notificationError);
+          // Silent error handling
         }
       })()
-    ]).catch(err => {
-      console.error('❌ Error in parallel notification processing:', err);
-    });
+    ]).catch(() => {});
 
     res.status(200).json({
       success: true,
@@ -527,7 +508,6 @@ const cancelOrder = async (req, res, next) => {
             status: refund.status
           };
         } catch (refundError) {
-          console.error('Error processing refund:', refundError);
           // Don't fail the cancellation if refund fails
           // Admin can process refund manually later
         }
@@ -551,26 +531,15 @@ const cancelOrder = async (req, res, next) => {
     // Send email notification to admin about order cancellation (async, non-blocking)
     (async () => {
       try {
-        console.log('📧 Starting order cancellation email notification process for order:', order._id);
         // Ensure order is populated with dish details before sending email
         const populatedOrder = await Order.findById(order._id).populate({
           path: 'items.dish',
           select: 'name description price imageUrl'
         }).populate('user', 'name email phone');
         
-        console.log('📧 Populated order data for cancellation:', {
-          orderId: populatedOrder._id,
-          orderNumber: populatedOrder.orderNumber,
-          customerName: populatedOrder.user?.name,
-          customerEmail: populatedOrder.user?.email,
-          itemsCount: populatedOrder.items?.length
-        });
-        
         const { sendOrderCancellationNotification } = require('./newsletterController');
-        const emailResult = await sendOrderCancellationNotification(populatedOrder);
-        console.log('📧 Order cancellation email notification result:', emailResult);
+        await sendOrderCancellationNotification(populatedOrder);
       } catch (emailError) {
-        console.error('❌ Error sending order cancellation email notification:', emailError);
         // Don't fail the cancellation if email fails
       }
     })();
@@ -740,27 +709,15 @@ const simulatePayment = async (req, res, next) => {
     // Send email notification to admin (async, non-blocking)
     (async () => {
       try {
-        console.log('📧 Starting SIMULATED PAYMENT email notification process for order:', orderId);
         const populatedOrder = await Order.findById(orderId).populate({
           path: 'items.dish',
           select: 'name description price imageUrl'
         }).populate('user', 'name email phone');
         
-        console.log('📧 Simulated payment - Populated order data:', {
-          orderId: populatedOrder._id,
-          orderNumber: populatedOrder.orderNumber,
-          customerName: populatedOrder.user?.name,
-          customerEmail: populatedOrder.user?.email,
-          itemsCount: populatedOrder.items?.length,
-          totalAmount: populatedOrder.totalAmount
-        });
-        
         const { sendOrderNotification } = require('./newsletterController');
-        const emailResult = await sendOrderNotification(populatedOrder);
-        console.log('📧 Simulated payment - Email notification result:', emailResult);
-        console.log('✅ Order notification email sent for simulated payment');
+        await sendOrderNotification(populatedOrder);
       } catch (err) {
-        console.error('❌ Error sending order email notification for simulated payment:', err);
+        // Silent error handling
       }
     })();
 
@@ -774,7 +731,6 @@ const simulatePayment = async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error('Error simulating payment:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to simulate payment'
